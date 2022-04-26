@@ -1,4 +1,4 @@
-from numpy import array
+from numpy import array, isfinite
 from numpy.random import normal
 from scipy.optimize import fmin_l_bfgs_b, differential_evolution
 from itertools import product
@@ -10,11 +10,52 @@ from inference.posterior import Posterior
 from inference.mcmc import EnsembleSampler
 
 
-def edge_profile_sample(radius, y_data, y_err, n_samples=10000, walkers=500, plot_diagnostics=False):
+def edge_profile_sample(radius, y_data, y_err, n_samples=10000, n_walkers=500, plot_diagnostics=False):
+    """
+    Generates a sample of possible edge profiles given Thomson-scattering
+    measurements of the plasma edge. The profile model used is a modified
+    version of the 'mtanh' function - see ``pedinf.model.mtanh`` for
+    details.
+
+    :param radius: \
+        The major radius values of the Thomson-scattering measurements
+        as a 1D ``numpy.ndarray``.
+
+    :param y_data: \
+        The measured profile values as 1D ``numpy.ndarray``.
+
+    :param y_err: \
+        The uncertainty of the measured profile values as 1D ``numpy.ndarray``.
+
+    :param n_samples: \
+        The total number of samples which will be generated.
+
+    :param n_walkers: \
+        The number of 'walkers' used in the sampling process. See the
+        documentation for the ``EnsembleSampler`` class in the
+        ``inference-tools`` package for further details.
+
+    :param bool plot_diagnostics: \
+        Selects whether diagnostic plots for the sampling a displayed.
+
+    :return: \
+        The samples as a 2D ``numpy.ndarray`` array of shape ``(n_samples, 6)``.
+    """
+    # filter out any points which aren't finite
+    finite = isfinite(y_data) & isfinite(y_err)
+    if finite.sum() < 3:
+        raise ValueError(
+            """
+            [ edge_profile_sample error ]
+            >> The 'y_data' and 'y_err' arrays do not contain enough
+            >> finite values (< 3) to proceed with the analysis.
+            """
+        )
+
     posterior = PedestalPosterior(
-        x=radius,
-        y=y_data,
-        y_err=y_err
+        x=radius[finite],
+        y=y_data[finite],
+        y_err=y_err[finite]
     )
     theta_mode = posterior.locate_mode()
 
@@ -25,16 +66,17 @@ def edge_profile_sample(radius, y_data, y_err, n_samples=10000, walkers=500, plo
             theta_mode[i] = 0.05 * (u - l)
 
     # setup ensemble sampling
-    starts = [theta_mode * (1 + 0.02 * normal(size=theta_mode.size)) for _ in range(walkers)]
+    starts = [theta_mode * normal(size=theta_mode.size, loc=1, scale=0.02) for _ in range(n_walkers)]
     chain = EnsembleSampler(
         posterior=posterior.posterior,
         starting_positions=starts
     )
     # run the sampler
-    d, r = divmod(n_samples, walkers)
+    d, r = divmod(n_samples, n_walkers)
     iterations = d if r == 0 else d + 1
-    chain.advance(iterations=iterations + 50)
-    sample = chain.get_sample(burn=walkers * 50)[:n_samples, :]
+    burn_itr = 70
+    chain.advance(iterations=iterations + burn_itr)
+    sample = chain.get_sample(burn=n_walkers * burn_itr)[:n_samples, :]
 
     if plot_diagnostics:
         chain.plot_diagnostics()
@@ -54,7 +96,7 @@ class PedestalPosterior(object):
             (self.x.min(), self.x.max()),
             (0., self.y.max()*1.5),
             (self.x.ptp()*1e-3, self.x.ptp()),
-            (0., 2.),
+            (-2., 2.),
             (0., 0.05),
             (-5, 1.)
         ]
