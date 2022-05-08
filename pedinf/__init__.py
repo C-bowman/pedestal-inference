@@ -94,11 +94,11 @@ class PedestalPosterior(object):
 
         self.bounds = [
             (self.x.min(), self.x.max()),
-            (0., self.y.max()*1.5),
+            (self.y.max()*0.05, self.y.max()*1.5),
             (self.x.ptp()*1e-3, self.x.ptp()),
             (-2., 2.),
             (0., 0.05),
-            (-5, 1.)
+            (-2, 1.)
         ]
 
         self.likelihood = likelihood(

@@ -1,32 +1,72 @@
-from numpy import linspace, mean, std, zeros
+from numpy import linspace, mean, std, isfinite, zeros
 from numpy.random import normal
+from warnings import warn
 from pedinf.model import mtanh, mtanh_gradient
 from inference.pdf import sample_hdi
 
 
 def locate_radius(profile_value, theta, tolerance=1e-4):
     if profile_value <= theta[1]*theta[4]:
-        raise ValueError("target value below minimum")
+        raise ValueError(
+            f"""
+            [ locate_radius error ]
+            >> 'profile_value' of {profile_value} is below the profile
+            >> minimum value of {theta[1]*theta[4]}.
+            """
+        )
+    if profile_value <= 0. or not isfinite(profile_value):
+        raise ValueError(
+            f"""
+            [ locate_radius error ]
+            >> 'profile_value' argument must be finite and greater than zero.
+            >> The given value was {profile_value}
+            """
+        )
 
-    R_search = linspace(theta[0] - 3*theta[2], theta[0] + 3*theta[2], 21)
+    if mtanh(theta[0], theta) > profile_value:
+        R_search = linspace(theta[0], theta[0] + 3 * theta[2], 21)
+    else:
+        R_search = linspace(theta[0] - 3 * theta[2], theta[0], 21)
+
     R = R_search[abs(profile_value - mtanh(R_search, theta)).argmin()]
+    initial_R = R.copy()
+    initial_val = mtanh(initial_R, theta)
+    initial_err = abs((profile_value - initial_val) / profile_value)
 
-    for i in range(20):
+    if not isfinite(initial_val):
+        raise ValueError(
+            f"""
+            [ locate_radius error ]
+            >> The initial estimate of the radius value produced by the grid
+            >> search yields a non-finite profile value of {initial_val}
+            """
+        )
+
+    for i in range(8):
         dy = (profile_value - mtanh(R, theta))
         R += dy / mtanh_gradient(R, theta)
         if abs(dy / profile_value) < tolerance:
             break
     else:
-        raise ValueError(
+        R = initial_R
+        warn(
             f"""
-            >> Failed to find radius at which given profile values occurs.
-            >> Lowest error was {abs(dy / profile_value)}, but tolerance is {tolerance}.
+            [ locate_radius warning ]
+            >> Newton iteration failed to converge. Instead returning grid-search
+            >> estimate of {initial_R} with a fractional error of {initial_err}.
             """
         )
     return R
 
 
 def density_given_temperature(ne_samples, te_samples, te_value, te_error=None):
+    if not isfinite(ne_samples).all() or not isfinite(te_samples).all():
+        raise ValueError(
+            """
+            [ density_given_temperature error ]
+            >> The 'ne_samples' and/or 'te_samples' arrays contain non-finite values.
+            """
+        )
     te_error = 0. if te_error is None else te_error
     n_prof = ne_samples.shape[0]
     density_samples = zeros(n_prof)
