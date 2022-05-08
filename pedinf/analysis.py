@@ -1,6 +1,7 @@
 from numpy import linspace, mean, std, zeros
 from numpy.random import normal
 from pedinf.model import mtanh, mtanh_gradient
+from inference.pdf import sample_hdi
 
 
 def locate_radius(profile_value, theta, tolerance=1e-4):
@@ -111,5 +112,48 @@ def separatrix_from_scaling(ne_samples, te_samples, separatrix_scaling, radius_l
     }
 
 
-def pressure_profile_and_gradient(ne_samples, te_samples):
-    pass
+def pressure_profile_and_gradient(radius, ne_samples, te_samples):
+    """
+    ...
+
+    :param radius: \
+        ...
+
+    :param ne_samples: \
+        A set of sampled parameters of the ``mtanh`` function representing
+        possible electron density edge profiles. The samples should be given
+        as a ``numpy.ndarray`` of shape ``(n, 6)`` where ``n`` is the number
+        of samples.
+
+    :param te_samples: \
+        A set of sampled parameters of the ``mtanh`` function representing
+        possible electron temperature edge profiles. The samples should be given
+        as a ``numpy.ndarray`` of shape ``(n, 6)`` where ``n`` is the number
+        of samples.
+
+    :return: \
+        ...
+    """
+    n_samples = ne_samples.shape[0]
+    pe_profs = zeros([n_samples, radius.size])
+    pe_grads = zeros([n_samples, radius.size])
+    for smp in range(n_samples):
+        te_prof = mtanh(radius, te_samples[smp, :])
+        te_grad = mtanh_gradient(radius, te_samples[smp, :])
+        ne_prof = mtanh(radius, ne_samples[smp, :])
+        ne_grad = mtanh_gradient(radius, ne_samples[smp, :])
+
+        pe_profs[smp, :] = te_prof * ne_prof
+        pe_grads[smp, :] = te_prof * ne_grad + ne_prof * te_grad
+
+    return {
+        "radius": radius,
+        "pe_profiles": pe_profs,
+        "pe_mean": pe_profs.mean(axis=0),
+        "pe_hdi_65": sample_hdi(pe_profs, fraction=0.65),
+        "pe_hdi_95": sample_hdi(pe_profs, fraction=0.95),
+        "pe_gradient_profiles": pe_grads,
+        "pe_gradient_mean": pe_grads.mean(axis=0),
+        "pe_gradient_hdi_65": sample_hdi(pe_grads, fraction=0.65),
+        "pe_gradient_hdi_95": sample_hdi(pe_grads, fraction=0.95),
+    }
