@@ -95,8 +95,8 @@ class PedestalPosterior(object):
         self.bounds = [
             (self.x.min(), self.x.max()),
             (self.y.max()*0.05, self.y.max()*1.5),
-            (self.x.ptp()*1e-3, self.x.ptp()),
-            (-2., 2.),
+            (self.x.ptp()*1e-2, self.x.ptp()),
+            (-5, 20),
             (0., 0.05),
             (-2, 1.)
         ]
@@ -128,7 +128,7 @@ class PedestalPosterior(object):
             dx * array([0.3, 0.5, 0.7]) + self.x.min(),
             self.y.max() * array([0.3, 0.5, 0.7]),
             dx * array([0.07, 0.15, 0.3]),
-            [0.2],
+            [5.],
             [0.01],
             [-0.35, 0.01, 0.35]
         )
