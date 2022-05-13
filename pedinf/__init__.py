@@ -59,12 +59,6 @@ def edge_profile_sample(radius, y_data, y_err, n_samples=10000, n_walkers=500, p
     )
     theta_mode = posterior.locate_mode()
 
-    # protection against the mode being zero
-    for i in range(theta_mode.size):
-        if theta_mode[i] == 0.:
-            l, u = posterior.bounds[i]
-            theta_mode[i] = 0.05 * (u - l)
-
     # setup ensemble sampling
     starts = [theta_mode * normal(size=theta_mode.size, loc=1, scale=0.02) for _ in range(n_walkers)]
     chain = EnsembleSampler(
@@ -97,7 +91,7 @@ class PedestalPosterior(object):
             (self.y.max()*0.05, self.y.max()*1.5),
             (self.x.ptp()*1e-2, self.x.ptp()),
             (-5, 20),
-            (0., 0.05),
+            (1e-3, 0.05),
             (-2, 1.)
         ]
 
