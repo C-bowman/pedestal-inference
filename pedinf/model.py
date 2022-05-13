@@ -9,7 +9,7 @@ def mtanh(R, theta):
 
     .. math::
 
-       f(R, \, \underline{\theta}) = \frac{h(1 - b)(1 - az)}{(1 + e^{4z})^{k}} + hb,
+       f(R, \, \underline{\theta}) = \frac{h(1 - b)(1 - awz)}{(1 + e^{4z})^{k}} + hb,
        \quad \quad z = \frac{R - R_0}{w}.
 
     The model parameter vector :math:`\underline{\theta}` has the following order:

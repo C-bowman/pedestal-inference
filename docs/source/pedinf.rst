@@ -1,7 +1,4 @@
-Sampling edge profiles
-======================
-
-edge_profile_sample
--------------------
+Sampling edge profiles with MCMC
+================================
 
 .. autofunction:: pedinf.edge_profile_sample
