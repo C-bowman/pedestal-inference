@@ -59,7 +59,7 @@ def locate_radius(profile_value, theta, tolerance=1e-4):
     return R
 
 
-def separatrix_from_temperature(ne_samples, te_samples, te_value, te_error=None):
+def separatrix_given_temperature(ne_samples, te_samples, te_value, te_error=None):
     """
     Given an estimated separatrix electron temperature (and optionally an associated
     uncertainty) this function estimates the separatrix major radius, electron density
@@ -123,7 +123,7 @@ def linear_find_zero(x1, x2, y1, y2):
     return x1 - y1 * (x2 - x1) / (y2 - y1)
 
 
-def separatrix_from_scaling(ne_samples, te_samples, separatrix_scaling, radius_limits=(1.2, 1.6)):
+def separatrix_given_scaling(ne_samples, te_samples, separatrix_scaling, radius_limits=(1.2, 1.6)):
     """
     Given a scaling function which specifies the separatrix temperature as
     a function of the separatrix density, estimates the mean and standard-deviation
@@ -196,10 +196,13 @@ def separatrix_from_scaling(ne_samples, te_samples, separatrix_scaling, radius_l
 
 def pressure_profile_and_gradient(radius, ne_samples, te_samples):
     """
-    ...
+    Calculates the electron pressure and pressure gradient profiles at
+    specified major radius positions, given samples of the edge electron
+    temperature and density profiles.
 
     :param radius: \
-        ...
+        Major radius values at which to evaluate the pressure profiles as
+        a ``numpy.ndarray``.
 
     :param ne_samples: \
         A set of sampled parameters of the ``mtanh`` function representing
@@ -214,7 +217,17 @@ def pressure_profile_and_gradient(radius, ne_samples, te_samples):
         of samples.
 
     :return: \
-        ...
+        A dictionary of results with the following keys:
+
+            - ``"radius"`` : The given radius axis on which the pressure profile was evaluated.
+            - ``"pe_profiles"`` : The sampled pressure profiles as a 2D ``numpy.ndarray``.
+            - ``"pe_mean"`` : The mean of the posterior predictive distribution for the pressure.
+            - ``"pe_hdi_65"`` : The 65% highest-density interval for the pressure profile.
+            - ``"pe_hdi_95"`` : The 95% highest-density interval for the pressure profile.
+            - ``"pe_gradient_profiles"`` : The sampled pressure gradient profiles as a 2D ``numpy.ndarray``.
+            - ``"pe_gradient_mean"`` : The mean of the posterior predictive distribution for the pressure gradient.
+            - ``"pe_gradient_hdi_65"`` : The 65% highest-density interval for the pressure gradient profile.
+            - ``"pe_gradient_hdi_95"`` : The 95% highest-density interval for the pressure gradient profile.
     """
     n_samples = ne_samples.shape[0]
     pe_profs = zeros([n_samples, radius.size])
