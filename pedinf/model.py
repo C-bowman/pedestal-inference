@@ -9,14 +9,14 @@ def mtanh(R, theta):
 
     .. math::
 
-       f(R, \underline{\theta}) = \frac{h(1 - b)(1 - az)}{(1 + e^{4z})^{k}} + h*b,
+       f(R, \, \underline{\theta}) = \frac{h(1 - b)(1 - az)}{(1 + e^{4z})^{k}} + hb,
        \quad \quad z = \frac{R - R_0}{w}.
 
     The model parameter vector :math:`\underline{\theta}` has the following order:
 
     .. math::
 
-       \underline{\theta} = \left[ R_0, h, w, a, b, \ln{k} \right],
+       \underline{\theta} = \left[ \,  R_0, \, h, \, w, \, a, \, b, \, \ln{k} \, \right],
 
     where
 
@@ -27,14 +27,9 @@ def mtanh(R, theta):
      - :math:`b` sets the background level as a fraction of the pedestal height.
      - :math:`\ln{k}` is a shaping parameter which affects how the profile decays.
 
-    :param R: \
-        Radius values at which the profile is evaluated.
-
-    :param theta: \
-        The model parameters as an array or list.
-
-    :return: \
-        The predicted profile at the given radius values.
+    :param R: Radius values at which the profile is evaluated.
+    :param theta: The model parameters as an array or list.
+    :return: The predicted profile at the given radius values.
     """
     R0, h, w, a, b, ln_k = theta
     z = (R - R0) / w
