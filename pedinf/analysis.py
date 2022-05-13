@@ -59,7 +59,37 @@ def locate_radius(profile_value, theta, tolerance=1e-4):
     return R
 
 
-def density_given_temperature(ne_samples, te_samples, te_value, te_error=None):
+def separatrix_from_temperature(ne_samples, te_samples, te_value, te_error=None):
+    """
+    Given an estimated separatrix electron temperature (and optionally an associated
+    uncertainty) this function estimates the separatrix major radius, electron density
+    and electron pressure.
+
+    :param ne_samples: \
+        A set of sampled parameters of the ``mtanh`` function representing
+        possible electron density edge profiles. The samples should be given
+        as a ``numpy.ndarray`` of shape ``(n, 6)`` where ``n`` is the number
+        of samples.
+
+    :param te_samples: \
+        A set of sampled parameters of the ``mtanh`` function representing
+        possible electron temperature edge profiles. The samples should be given
+        as a ``numpy.ndarray`` of shape ``(n, 6)`` where ``n`` is the number
+        of samples.
+
+    :param te_value: \
+        The electron temperature value for which the corresponding major radius,
+        electron density and electron pressure will be estimated.
+
+    :param te_error: \
+        The uncertainty on the given value of ``te_value``.
+
+    :return: \
+        A dictionary containing the mean and standard-deviation for the separatrix major
+        radius, separatrix electron density, and separatrix electron pressure. The keys
+        are ``R_mean, ne_mean, pe_mean`` for the means, and
+        ``R_std, ne_std, pe_std`` for the standard-deviations.
+    """
     if not isfinite(ne_samples).all() or not isfinite(te_samples).all():
         raise ValueError(
             """
@@ -69,12 +99,24 @@ def density_given_temperature(ne_samples, te_samples, te_value, te_error=None):
         )
     te_error = 0. if te_error is None else te_error
     n_prof = ne_samples.shape[0]
-    density_samples = zeros(n_prof)
+    ne_sep_samples = zeros(n_prof)
+    pe_sep_samples = zeros(n_prof)
+    R_sep_samples = zeros(n_prof)
     for i in range(n_prof):
         te = te_value + te_error*normal()
         R = locate_radius(te, te_samples[i, :])
-        density_samples[i] = mtanh(R, ne_samples[i, :])
-    return density_samples
+        ne_sep_samples[i] = mtanh(R, ne_samples[i, :])
+        pe_sep_samples[i] = ne_sep_samples[i] * te
+        R_sep_samples[i] = R
+
+    return {
+        'ne_mean': mean(ne_sep_samples),
+        'ne_std': std(ne_sep_samples),
+        'pe_mean': mean(pe_sep_samples),
+        'pe_std': std(pe_sep_samples),
+        'R_mean': mean(R_sep_samples),
+        'R_std': std(R_sep_samples)
+    }
 
 
 def linear_find_zero(x1, x2, y1, y2):
@@ -107,8 +149,8 @@ def separatrix_from_scaling(ne_samples, te_samples, separatrix_scaling, radius_l
     :return: \
         A dictionary containing the mean and standard-deviation for the
         separatrix major radius, and separatrix electron temperature,
-        density and pressure. The keys are ``'R_mean', te_mean, ne_mean, pe_mean``
-        for the means, and ``'R_std', te_std, ne_std, pe_std`` for the
+        density and pressure. The keys are ``R_mean, te_mean, ne_mean, pe_mean``
+        for the means, and ``R_std, te_std, ne_std, pe_std`` for the
         standard-deviations.
     """
 
