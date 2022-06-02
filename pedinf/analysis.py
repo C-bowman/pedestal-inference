@@ -147,19 +147,21 @@ def linear_find_zero(x1, x2, y1, y2):
     return x1 - y1 * (x2 - x1) / (y2 - y1)
 
 
-def separatrix_given_scaling(ne_samples, te_samples, separatrix_scaling, radius_limits=(1.2, 1.6)):
+def separatrix_given_scaling(
+        ne_profile_samples, te_profile_samples, separatrix_scaling, radius_limits=(1.2, 1.6)
+):
     """
     Given a scaling function which specifies the separatrix temperature as
     a function of the separatrix density, estimates the mean and standard-deviation
     of the separatrix radius and separatrix electron density, temperature and pressure.
 
-    :param ne_samples: \
+    :param ne_profile_samples: \
         A set of sampled parameters of the ``mtanh`` function representing
         possible electron density edge profiles. The samples should be given
         as a ``numpy.ndarray`` of shape ``(n, 6)`` where ``n`` is the number
         of samples.
 
-    :param te_samples: \
+    :param te_profile_samples: \
         A set of sampled parameters of the ``mtanh`` function representing
         possible electron temperature edge profiles. The samples should be given
         as a ``numpy.ndarray`` of shape ``(n, 6)`` where ``n`` is the number
@@ -187,18 +189,18 @@ def separatrix_given_scaling(ne_samples, te_samples, separatrix_scaling, radius_
 
     # loop over all the samples for this TS profile
     radius_axis = linspace(radius_limits[0], radius_limits[1], 128)
-    for smp in range(ne_samples.shape[0]):
+    for smp in range(ne_profile_samples.shape[0]):
         # impose the SOLPS scaling to find the separatrix position
-        te_prof = mtanh(radius_axis, te_samples[smp, :])
-        te_sep_prediction = separatrix_scaling(mtanh(radius_axis, ne_samples[smp, :]))
+        te_prof = mtanh(radius_axis, te_profile_samples[smp, :])
+        te_sep_prediction = separatrix_scaling(mtanh(radius_axis, ne_profile_samples[smp, :]))
         dt = te_prof - te_sep_prediction
         m = abs(dt).argmin()
         i, j = (m - 1, m) if dt[m] * dt[m - 1] < 0. else (m, m + 1)
         R_sep = linear_find_zero(radius_axis[i], radius_axis[j], dt[i], dt[j])
 
         # use separatrix position to get the temperature / density
-        te_sep = mtanh(R_sep, te_samples[smp, :])
-        ne_sep = mtanh(R_sep, ne_samples[smp, :])
+        te_sep = mtanh(R_sep, te_profile_samples[smp, :])
+        ne_sep = mtanh(R_sep, ne_profile_samples[smp, :])
 
         # store the results for this sample
         ne_sep_samples.append(ne_sep)
@@ -218,7 +220,7 @@ def separatrix_given_scaling(ne_samples, te_samples, separatrix_scaling, radius_
     }
 
 
-def pressure_profile_and_gradient(radius, ne_samples, te_samples):
+def pressure_profile_and_gradient(radius, ne_profile_samples, te_profile_samples):
     """
     Calculates the electron pressure and pressure gradient profiles at
     specified major radius positions, given samples of the edge electron
@@ -228,13 +230,13 @@ def pressure_profile_and_gradient(radius, ne_samples, te_samples):
         Major radius values at which to evaluate the pressure profiles as
         a ``numpy.ndarray``.
 
-    :param ne_samples: \
+    :param ne_profile_samples: \
         A set of sampled parameters of the ``mtanh`` function representing
         possible electron density edge profiles. The samples should be given
         as a ``numpy.ndarray`` of shape ``(n, 6)`` where ``n`` is the number
         of samples.
 
-    :param te_samples: \
+    :param te_profile_samples: \
         A set of sampled parameters of the ``mtanh`` function representing
         possible electron temperature edge profiles. The samples should be given
         as a ``numpy.ndarray`` of shape ``(n, 6)`` where ``n`` is the number
@@ -253,14 +255,14 @@ def pressure_profile_and_gradient(radius, ne_samples, te_samples):
             - ``"pe_gradient_hdi_65"`` : The 65% highest-density interval for the pressure gradient profile.
             - ``"pe_gradient_hdi_95"`` : The 95% highest-density interval for the pressure gradient profile.
     """
-    n_samples = ne_samples.shape[0]
+    n_samples = ne_profile_samples.shape[0]
     pe_profs = zeros([n_samples, radius.size])
     pe_grads = zeros([n_samples, radius.size])
     for smp in range(n_samples):
-        te_prof = mtanh(radius, te_samples[smp, :])
-        te_grad = mtanh_gradient(radius, te_samples[smp, :])
-        ne_prof = mtanh(radius, ne_samples[smp, :])
-        ne_grad = mtanh_gradient(radius, ne_samples[smp, :])
+        te_prof = mtanh(radius, te_profile_samples[smp, :])
+        te_grad = mtanh_gradient(radius, te_profile_samples[smp, :])
+        ne_prof = mtanh(radius, ne_profile_samples[smp, :])
+        ne_grad = mtanh_gradient(radius, ne_profile_samples[smp, :])
 
         pe_profs[smp, :] = te_prof * ne_prof
         pe_grads[smp, :] = te_prof * ne_grad + ne_prof * te_grad
