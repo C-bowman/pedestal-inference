@@ -59,30 +59,39 @@ def locate_radius(profile_value, theta, tolerance=1e-4):
     return R
 
 
-def separatrix_given_temperature(ne_samples, te_samples, te_value, te_error=None):
+def separatrix_given_temperature(
+        ne_profile_samples, te_profile_samples, te_sep=None, te_sep_error=None, te_sep_samples=None
+):
     """
     Given an estimated separatrix electron temperature (and optionally an associated
     uncertainty) this function estimates the separatrix major radius, electron density
     and electron pressure.
 
-    :param ne_samples: \
+    :param ne_profile_samples: \
         A set of sampled parameters of the ``mtanh`` function representing
         possible electron density edge profiles. The samples should be given
         as a ``numpy.ndarray`` of shape ``(n, 6)`` where ``n`` is the number
         of samples.
 
-    :param te_samples: \
+    :param te_profile_samples: \
         A set of sampled parameters of the ``mtanh`` function representing
         possible electron temperature edge profiles. The samples should be given
         as a ``numpy.ndarray`` of shape ``(n, 6)`` where ``n`` is the number
         of samples.
 
-    :param te_value: \
+    :param te_sep: \
         The electron temperature value for which the corresponding major radius,
         electron density and electron pressure will be estimated.
 
-    :param te_error: \
-        The uncertainty on the given value of ``te_value``.
+    :param te_sep_error: \
+        The Gaussian uncertainty on the given value of ``te_sep``.
+
+    :param te_sep_samples: \
+        Samples of the separatrix temperature value. This allows non-gaussian uncertainties
+        on the separatrix temperature to included in the analysis. Specifying ``te_sep_samples``
+        overrides any values given to the ``te_sep`` or ``te_sep_error`` arguments, which will
+        be ignored. The number of separatrix temperature samples given must be equal to the
+        number of profile samples.
 
     :return: \
         A dictionary containing the mean and standard-deviation for the separatrix major
@@ -90,23 +99,38 @@ def separatrix_given_temperature(ne_samples, te_samples, te_value, te_error=None
         are ``R_mean, ne_mean, pe_mean`` for the means, and
         ``R_std, ne_std, pe_std`` for the standard-deviations.
     """
-    if not isfinite(ne_samples).all() or not isfinite(te_samples).all():
+    if not isfinite(ne_profile_samples).all() or not isfinite(te_profile_samples).all():
         raise ValueError(
             """
             [ density_given_temperature error ]
-            >> The 'ne_samples' and/or 'te_samples' arrays contain non-finite values.
+            >> The 'ne_profile_samples' and/or 'te_profile_samples' arrays contain non-finite values.
             """
         )
-    te_error = 0. if te_error is None else te_error
-    n_prof = ne_samples.shape[0]
+
+    if te_sep is None and te_sep_samples is None:
+        raise ValueError(
+            """
+            [ density_given_temperature error ]
+            >> At least one of the 'te_sep' and 'te_sep_samples' arguments
+            >> must be specified.
+            """
+        )
+
+    te_sep_error = 0. if te_sep_error is None else te_sep_error
+    n_prof = ne_profile_samples.shape[0]
     ne_sep_samples = zeros(n_prof)
     pe_sep_samples = zeros(n_prof)
     R_sep_samples = zeros(n_prof)
+
+    if te_sep_samples is None:
+        te_sep_samples = normal(loc=te_sep, scale=te_sep_error, size=int(n_prof * 1.2))
+        te_sep_samples = te_sep_samples[(te_sep - 2.5 * te_sep_error) & (te_sep + 2.5 * te_sep_error)]
+    assert te_sep_samples.size >= n_prof
+
     for i in range(n_prof):
-        te = te_value + te_error*normal()
-        R = locate_radius(te, te_samples[i, :])
-        ne_sep_samples[i] = mtanh(R, ne_samples[i, :])
-        pe_sep_samples[i] = ne_sep_samples[i] * te
+        R = locate_radius(te_sep_samples[i], te_profile_samples[i, :])
+        ne_sep_samples[i] = mtanh(R, ne_profile_samples[i, :])
+        pe_sep_samples[i] = ne_sep_samples[i] * te_sep_samples[i]
         R_sep_samples[i] = R
 
     return {
