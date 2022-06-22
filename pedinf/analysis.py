@@ -102,7 +102,7 @@ def separatrix_given_temperature(
     if not isfinite(ne_profile_samples).all() or not isfinite(te_profile_samples).all():
         raise ValueError(
             """
-            [ density_given_temperature error ]
+            [ separatrix_given_temperature error ]
             >> The 'ne_profile_samples' and/or 'te_profile_samples' arrays contain non-finite values.
             """
         )
@@ -110,7 +110,7 @@ def separatrix_given_temperature(
     if te_sep is None and te_sep_samples is None:
         raise ValueError(
             """
-            [ density_given_temperature error ]
+            [ separatrix_given_temperature error ]
             >> At least one of the 'te_sep' and 'te_sep_samples' arguments
             >> must be specified.
             """
