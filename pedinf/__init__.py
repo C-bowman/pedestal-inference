@@ -63,7 +63,8 @@ def edge_profile_sample(radius, y_data, y_err, n_samples=10000, n_walkers=500, p
     starts = [theta_mode * normal(size=theta_mode.size, loc=1, scale=0.02) for _ in range(n_walkers)]
     chain = EnsembleSampler(
         posterior=posterior.posterior,
-        starting_positions=starts
+        starting_positions=starts,
+        display_progress=False
     )
     # run the sampler
     d, r = divmod(n_samples, n_walkers)
