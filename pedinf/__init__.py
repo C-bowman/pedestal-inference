@@ -1,8 +1,9 @@
-from numpy import array, isfinite
+from numpy import array, diff, isfinite, ndarray
 from numpy.random import normal
 from scipy.optimize import fmin_l_bfgs_b, differential_evolution
+from dataclasses import dataclass
 from itertools import product
-from pedinf.model import PedestalModel
+from pedinf.model import PedestalModel, SpectrometerModel, mtanh
 
 from inference.likelihoods import LogisticLikelihood
 from inference.priors import UniformPrior, GaussianPrior, ExponentialPrior, JointPrior
@@ -10,7 +11,9 @@ from inference.posterior import Posterior
 from inference.mcmc import EnsembleSampler
 
 
-def edge_profile_sample(radius, y_data, y_err, n_samples=10000, n_walkers=500, plot_diagnostics=False):
+def edge_profile_sample(
+    radius, y_data, y_err, n_samples=10000, n_walkers=500, plot_diagnostics=False
+):
     """
     Generates a sample of possible edge profiles given Thomson-scattering
     measurements of the plasma edge. The profile model used is a modified
@@ -53,18 +56,17 @@ def edge_profile_sample(radius, y_data, y_err, n_samples=10000, n_walkers=500, p
         )
 
     posterior = PedestalPosterior(
-        x=radius[finite],
-        y=y_data[finite],
-        y_err=y_err[finite]
+        x=radius[finite], y=y_data[finite], y_err=y_err[finite]
     )
     theta_mode = posterior.locate_mode()
 
     # setup ensemble sampling
-    starts = [theta_mode * normal(size=theta_mode.size, loc=1, scale=0.02) for _ in range(n_walkers)]
+    starts = [
+        theta_mode * normal(size=theta_mode.size, loc=1, scale=0.02)
+        for _ in range(n_walkers)
+    ]
     chain = EnsembleSampler(
-        posterior=posterior.posterior,
-        starting_positions=starts,
-        display_progress=False
+        posterior=posterior.posterior, starting_positions=starts, display_progress=False
     )
     # run the sampler
     d, r = divmod(n_samples, n_walkers)
@@ -80,7 +82,7 @@ def edge_profile_sample(radius, y_data, y_err, n_samples=10000, n_walkers=500, p
     return sample
 
 
-class PedestalPosterior(object):
+class PedestalPosterior:
     def __init__(self, x, y, y_err, likelihood=LogisticLikelihood):
         self.x = x
         self.y = y
@@ -89,18 +91,18 @@ class PedestalPosterior(object):
 
         self.bounds = [
             (self.x.min(), self.x.max()),
-            (self.y.max()*0.05, self.y.max()*1.5),
-            (self.x.ptp()*1e-2, self.x.ptp()),
+            (self.y.max() * 0.05, self.y.max() * 1.5),
+            (self.x.ptp() * 1e-2, self.x.ptp()),
             (-5, 20),
             (1e-3, 0.05),
-            (-2, 1.)
+            (-2, 1.0),
         ]
 
         self.likelihood = likelihood(
             y_data=self.y,
             sigma=self.sigma,
             forward_model=self.model.prediction,
-            forward_model_jacobian=self.model.jacobian
+            forward_model_jacobian=self.model.jacobian,
         )
 
         self.prior = JointPrior(
@@ -108,12 +110,12 @@ class PedestalPosterior(object):
                 UniformPrior(
                     lower=[b[0] for b in self.bounds[:4]],
                     upper=[b[1] for b in self.bounds[:4]],
-                    variable_indices=[0, 1, 2, 3]
+                    variable_indices=[0, 1, 2, 3],
                 ),
                 ExponentialPrior(beta=5e-3, variable_indices=[4]),
-                GaussianPrior(mean=0., sigma=0.5, variable_indices=[5])
+                GaussianPrior(mean=0.0, sigma=0.5, variable_indices=[5]),
             ],
-            n_variables=6
+            n_variables=6,
         )
         self.posterior = Posterior(likelihood=self.likelihood, prior=self.prior)
 
@@ -123,9 +125,9 @@ class PedestalPosterior(object):
             dx * array([0.3, 0.5, 0.7]) + self.x.min(),
             self.y.max() * array([0.3, 0.5, 0.7]),
             dx * array([0.07, 0.15, 0.3]),
-            [5.],
+            [5.0],
             [0.01],
-            [-0.35, 0.01, 0.35]
+            [-0.35, 0.01, 0.35],
         )
         return [array(g) for g in guesses]
 
@@ -135,12 +137,46 @@ class PedestalPosterior(object):
             func=self.posterior.cost,
             fprime=self.posterior.cost_gradient,
             x0=guesses[-1],
-            bounds=self.bounds
+            bounds=self.bounds,
         )
 
-        de_result = differential_evolution(
-            func=self.posterior.cost,
-            bounds=self.bounds
-        )
+        de_result = differential_evolution(func=self.posterior.cost, bounds=self.bounds)
 
         return bfgs_mode if fmin < de_result.fun else de_result.x
+
+
+@dataclass
+class SpectrumData:
+    spectra: ndarray
+    errors: ndarray
+    spatial_channels: ndarray
+
+    def __post_init__(self):
+        # check the data have the correct dimensions / shapes
+        assert self.spectra.ndim == 2
+        assert self.errors.ndim == 2
+        assert self.spatial_channels.ndim == 1
+        assert self.spectra.shape == self.errors.shape
+        assert self.spectra.shape[0] == self.spatial_channels.shape[0]
+
+        assert (self.errors > 0).all()
+        assert (diff(self.spatial_channels) > 0).all()
+
+        self.n_spectra = self.spectra.shape[1]
+
+
+class SpectralPedestalPosterior:
+    def __init__(
+        self,
+        spectrometer_model: SpectrometerModel,
+        data: SpectrumData,
+        likelihood=LogisticLikelihood,
+    ):
+        self.spectrum = spectrometer_model
+        self.data = data
+
+        self.likelihood = likelihood(
+            y_data=data.spectra.flatten(),
+            sigma=data.errors.flatten(),
+            forward_model=self.spectrum.predictions,
+        )
