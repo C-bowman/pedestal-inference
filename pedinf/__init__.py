@@ -157,8 +157,15 @@ class SpectrumData:
         assert self.errors.ndim == 2
         assert self.spatial_channels.ndim == 1
         assert self.spectra.shape == self.errors.shape
-        assert self.spectra.shape[0] == self.spatial_channels.shape[0]
 
+        # check for any data which are NaN or inf
+        assert self.spectra.shape[0] == self.spatial_channels.shape[0]
+        bad_data = ~isfinite(self.spectra) | ~isfinite(self.errors)
+        if bad_data.any():
+            self.spectra[bad_data] = 0.
+            self.errors[bad_data] = self.spectra.max() * 1e10
+
+        # check validity of data values
         assert (self.errors > 0).all()
         assert (diff(self.spatial_channels) > 0).all()
 
