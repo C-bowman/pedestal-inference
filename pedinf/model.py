@@ -68,10 +68,31 @@ def mtanh_gradient(R, theta):
 
 def lpm(R, theta):
     R0, h, w, a, b, ln_k = theta
-    z = (R - R0) / w
-    G = (0.25 * a * w) * log(1 + exp(-4 * z))
-    L = (h - b) * (1 + exp(4 * z)) ** -exp(ln_k)
+    sigma = 0.25 * w
+    z = (R - R0) / sigma
+    G = (a * sigma) * log(1 + exp(-z))
+    L = (h - b) * (1 + exp(z)) ** -exp(ln_k)
     return (G + L) + b
+
+
+def lpm_jacobian(R, theta):
+    R0, h, w, a, b, ln_k = theta
+    k = exp(ln_k)
+    z = 4 * (R - R0) / w
+    L = 1 / (1 + exp(z))
+    S = log(1 + exp(-z))  # think this can be written in terms of L and z
+    Lk = L**k
+
+    jac = zeros([R.size, 6])
+
+    df_dz_w = (k * (h - b) / w) * Lk * (1 - L) + (0.25 * a) * L
+    jac[:, 0] = -4 * df_dz_w
+    jac[:, 1] = Lk
+    jac[:, 2] = z * df_dz_w
+    jac[:, 3] = (0.25 * w) * S
+    jac[:, 4] = 1 - Lk
+    jac[:, 5] = (k * (h - b)) * Lk * log(L)
+    return jac
 
 
 class PedestalModel:
