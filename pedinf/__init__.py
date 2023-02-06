@@ -169,6 +169,7 @@ class SpectrumData:
         assert (self.errors > 0).all()
         assert (diff(self.spatial_channels) > 0).all()
 
+        self.good_data = ~bad_data
         self.n_spectra = self.spectra.shape[1]
 
 
@@ -176,14 +177,14 @@ class SpectralPedestalPosterior:
     def __init__(
         self,
         spectrometer_model: SpectrometerModel,
-        data: SpectrumData,
+        spectrum_data: SpectrumData,
         likelihood=LogisticLikelihood,
     ):
         self.spectrum = spectrometer_model
-        self.data = data
+        self.data = spectrum_data
 
         self.likelihood = likelihood(
-            y_data=data.spectra.flatten(),
-            sigma=data.errors.flatten(),
+            y_data=self.data.spectra.flatten(),
+            sigma=self.data.errors.flatten(),
             forward_model=self.spectrum.predictions,
         )

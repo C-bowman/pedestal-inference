@@ -66,6 +66,14 @@ def mtanh_gradient(R, theta):
     return -(h * (1 - b)) * (G * ((4 * k / w) * exp_4z / L0) + a) * L
 
 
+def lpm(R, theta):
+    R0, h, w, a, b, ln_k = theta
+    z = (R - R0) / w
+    G = (0.25 * a * w) * log(1 + exp(-4 * z))
+    L = (h - b) * (1 + exp(4 * z)) ** -exp(ln_k)
+    return (G + L) + b
+
+
 class PedestalModel:
     def __init__(self, R):
         self.R = R
@@ -148,6 +156,6 @@ class SpectrometerModel:
         return y
 
     def predictions(self, theta: ndarray) -> ndarray:
-        Te = mtanh(self.IF_radius, theta[self.te_slc])
-        ne = mtanh(self.IF_radius, theta[self.ne_slc])
+        Te = lpm(self.IF_radius, theta[self.te_slc])
+        ne = lpm(self.IF_radius, theta[self.ne_slc])
         return self.spectrum(Te, ne).flatten()
