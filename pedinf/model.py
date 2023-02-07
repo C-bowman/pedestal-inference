@@ -70,8 +70,9 @@ def lpm(R, theta):
     R0, h, w, a, b, ln_k = theta
     sigma = 0.25 * w
     z = (R - R0) / sigma
-    G = (a * sigma) * log(1 + exp(-z))
-    L = (h - b) * (1 + exp(z)) ** -exp(ln_k)
+    exp_p1 = 1 + exp(z)
+    G = (a * sigma) * (log(exp_p1) - z)
+    L = (h - b) * exp_p1 ** -exp(ln_k)
     return (G + L) + b
 
 
