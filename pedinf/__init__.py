@@ -150,6 +150,8 @@ class SpectrumData:
     spectra: ndarray
     errors: ndarray
     spatial_channels: ndarray
+    time_index: int
+    shot: int
 
     def __post_init__(self):
         # check the data have the correct dimensions / shapes
