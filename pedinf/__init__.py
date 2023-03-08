@@ -3,7 +3,7 @@ from numpy.random import normal
 from scipy.optimize import fmin_l_bfgs_b, differential_evolution
 from dataclasses import dataclass
 from itertools import product
-from pedinf.model import PedestalModel, SpectrometerModel, mtanh
+from pedinf.models import SpectrometerModel, ProfileModel, mtanh
 
 from inference.likelihoods import LogisticLikelihood
 from inference.priors import UniformPrior, GaussianPrior, ExponentialPrior, JointPrior
@@ -83,11 +83,11 @@ def edge_profile_sample(
 
 
 class PedestalPosterior:
-    def __init__(self, x, y, y_err, likelihood=LogisticLikelihood):
+    def __init__(self, x, y, y_err, model: ProfileModel, likelihood=LogisticLikelihood):
         self.x = x
         self.y = y
         self.sigma = y_err
-        self.model = PedestalModel(R=x)
+        self.model = model
 
         self.bounds = [
             (self.x.min(), self.x.max()),
