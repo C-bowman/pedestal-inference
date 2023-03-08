@@ -1,19 +1,17 @@
-from numpy import linspace, mean, std, isfinite, zeros
+from numpy import linspace, mean, ndarray, std, isfinite, zeros
 from numpy.random import normal
 from warnings import warn
-from pedinf.model import mtanh, mtanh_gradient
+from pedinf.models import ProfileModel
 from inference.pdf import sample_hdi
 
 
-def locate_radius(profile_value, theta, tolerance=1e-4):
-    if profile_value <= theta[1]*theta[4]:
-        raise ValueError(
-            f"""
-            [ locate_radius error ]
-            >> 'profile_value' of {profile_value} is below the profile
-            >> minimum value of {theta[1]*theta[4]}.
-            """
-        )
+def locate_radius(
+        profile_value: float,
+        theta: ndarray,
+        model: ProfileModel,
+        search_limits=(1.3, 1.5),
+        tolerance=1e-4
+):
     if profile_value <= 0. or not isfinite(profile_value):
         raise ValueError(
             f"""
