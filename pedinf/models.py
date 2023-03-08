@@ -6,7 +6,7 @@ from itertools import product
 
 
 class ProfileModel(ABC):
-
+    name: str
     parameters: dict
     n_parameters: int
 
@@ -32,7 +32,8 @@ class ProfileModel(ABC):
 
 
 class mtanh(ProfileModel):
-
+    name = "mtanh"
+    n_parameters = 5
     parameters = {
         "R0 (pedestal location)": 0,
         "h (pedestal height)": 1,
@@ -40,8 +41,6 @@ class mtanh(ProfileModel):
         "a (pedestal top gradient)": 3,
         "b (background level)": 4,
     }
-
-    n_parameters = 5
 
     @staticmethod
     def prediction(R, theta):
@@ -107,7 +106,8 @@ class mtanh(ProfileModel):
 
 
 class lpm(ProfileModel):
-
+    name = "lpm"
+    n_parameters = 6
     parameters = {
         "R0 (pedestal location)": 0,
         "h (pedestal height)": 1,
@@ -116,8 +116,6 @@ class lpm(ProfileModel):
         "b (background level)": 4,
         "ln_k (logistic shape parameter)": 5,
     }
-
-    n_parameters = 6
 
     @staticmethod
     def prediction(R: ndarray, theta: ndarray) -> ndarray:
