@@ -32,6 +32,30 @@ class ProfileModel(ABC):
 
 
 class mtanh(ProfileModel):
+    r"""
+    The standard 'mtanh' function used for pedestal fitting. Specifically,
+    the function is:
+
+    .. math::
+
+       f(R, \, \underline{\theta}) = L(z) \left(h + \frac{awz}{4} \right) + b,
+       \quad \quad L(x) = \frac{1}{1 + e^{-x}} \quad \quad z = -4 \frac{R - R_0}{w}.
+
+    The model parameter vector :math:`\underline{\theta}` has the following order:
+
+    .. math::
+
+       \underline{\theta} = \left[ \,  R_0, \, h, \, w, \, a, \, b, \, \right],
+
+    where
+
+     - :math:`R_0` is the radial location of the pedestal.
+     - :math:`h` is the pedestal height.
+     - :math:`w` is the pedestal width.
+     - :math:`a` is the profile gradient beyond the pedestal top.
+     - :math:`b` is the background level.
+    """
+
     name = "mtanh"
     n_parameters = 5
     parameters = {
@@ -43,44 +67,29 @@ class mtanh(ProfileModel):
     }
 
     @staticmethod
-    def prediction(R, theta):
+    def prediction(R: ndarray, theta: ndarray) -> ndarray:
         r"""
-        A modified version of the 'mtanh' function which includes an additional parameter
-        controlling how rapidly the profile decays at the 'foot' of the pedestal.
-        Specifically, the function is:
+        Calculates the prediction of the ``mtanh`` model.
+        See the documentation for ``mtanh`` for details of the model itself.
 
-        .. math::
+        :param R: \
+            Radius values at which the gradient is evaluated.
 
-           f(R, \, \underline{\theta}) = \frac{h(1 - b)(1 - awz)}{(1 + e^{4z})^{k}} + hb,
-           \quad \quad z = \frac{R - R_0}{w}.
+        :param theta: \
+            The model parameters as an array.
 
-        The model parameter vector :math:`\underline{\theta}` has the following order:
-
-        .. math::
-
-           \underline{\theta} = \left[ \,  R_0, \, h, \, w, \, a, \, b, \, \ln{k} \, \right],
-
-        where
-
-         - :math:`R_0` is the radial location of the pedestal.
-         - :math:`h` is the pedestal height.
-         - :math:`w` is the pedestal width.
-         - :math:`a` controls the profile gradient at the pedestal top.
-         - :math:`b` sets the background level as a fraction of the pedestal height.
-         - :math:`\ln{k}` is a shaping parameter which affects how the profile decays.
-
-        :param R: Radius values at which the profile is evaluated.
-        :param theta: The model parameters as an array or list.
-        :return: The predicted profile at the given radius values.
+        :return: \
+            The predicted profile at the given radius values.
         """
         R0, h, w, a, b = theta
-        z = (R - R0) / w
-        G = 1 - (a * w) * z
-        L = (1 + exp(4 * z))
-        return (h * (1 - b)) * (G / L) + h * b
+        sigma = 0.25 * w
+        z = (R0 - R) / sigma
+        G = h - b + (a * sigma) * z
+        L = 1 + exp(-z)
+        return (G / L) + b
 
     @staticmethod
-    def gradient(R, theta):
+    def gradient(R: ndarray, theta: ndarray) -> ndarray:
         """
         Calculates the gradient (w.r.t. major radius) of the ``mtanh`` function.
         See the documentation for ``mtanh`` for details of the function itself.
@@ -89,23 +98,69 @@ class mtanh(ProfileModel):
             Radius values at which the gradient is evaluated.
 
         :param theta: \
-            The model parameters as an array or list.
+            The model parameters as an array.
 
         :return: \
             The predicted gradient profile at the given radius values.
         """
         R0, h, w, a, b = theta
+        sigma = 0.25 * w
+        z = (R0 - R) / sigma
+        L = 1 / (1 + exp(-z))
+        c = (h - b) / sigma
+        return -L * ((1 - L) * (c + a*z) + a)
 
-        # pre-calculate some quantities for optimisation
-        z = (R - R0) / w
-        G = 1 - (a * w) * z
-        exp_4z = exp(4 * z)
-        L = 1 / (1 + exp_4z)
+    @staticmethod
+    def jacobian(R: ndarray, theta: ndarray) -> ndarray:
+        R0, h, w, a, b = theta
+        z = 4 * (R - R0) / w
+        L = 1 / (1 + exp(z))
+        ln_L = log(L)
+        S = -ln_L - z
 
-        return -(h * (1 - b)) * (G * ((4 / w) * exp_4z * L) + a) * L
+        jac = zeros([R.size, 5])
+        df_dz = (h - b) * L * (1 - L) + (0.25 * a * w) * L
+        jac[:, 0] = (4 / w) * df_dz
+        jac[:, 1] = L
+        jac[:, 2] = (z / w) * df_dz + (0.25 * a) * S
+        jac[:, 3] = (0.25 * w) * S
+        jac[:, 4] = 1 - L
+        jac[:, 5] = (h - b) * L * ln_L
+        return jac
 
 
 class lpm(ProfileModel):
+    r"""
+    A modified version of the 'mtanh' function which includes an additional parameter
+    controlling how rapidly the profile decays at the 'foot' of the pedestal.
+    Specifically, the function is:
+
+    .. math::
+
+       f(R, \, \underline{\theta}) = h\,L^{k}(z) + \frac{aw}{4}S(z) + b,
+       \quad \quad L(x) = \frac{1}{1 + e^{-x}} \quad \quad z = -4 \frac{R - R_0}{w}.
+
+    and
+
+    .. math::
+
+       S(x) = \int_{-\infty}^{x} L(x')\,\mathrm{d}x' = \ln{(1 + e^x)}
+
+    The model parameter vector :math:`\underline{\theta}` has the following order:
+
+    .. math::
+
+       \underline{\theta} = \left[ \,  R_0, \, h, \, w, \, a, \, b, \, \ln{k} \, \right],
+
+    where
+
+     - :math:`R_0` is the radial location of the pedestal.
+     - :math:`h` is the pedestal height.
+     - :math:`w` is the pedestal width.
+     - :math:`a` is the profile gradient beyond the pedestal top.
+     - :math:`b` is the background level.
+     - :math:`\ln{k}` is a shaping parameter which affects how the profile decays.
+    """
     name = "lpm"
     n_parameters = 6
     parameters = {
@@ -119,6 +174,19 @@ class lpm(ProfileModel):
 
     @staticmethod
     def prediction(R: ndarray, theta: ndarray) -> ndarray:
+        r"""
+        Calculates the prediction of the ``lpm`` model.
+        See the documentation for ``lpm`` for details of the model itself.
+
+        :param R: \
+            Radius values at which the gradient is evaluated.
+
+        :param theta: \
+            The model parameters as an array.
+
+        :return: \
+            The predicted profile at the given radius values.
+        """
         R0, h, w, a, b, ln_k = theta
         sigma = 0.25 * w
         z = (R - R0) / sigma
@@ -129,6 +197,19 @@ class lpm(ProfileModel):
 
     @staticmethod
     def gradient(R: ndarray, theta: ndarray) -> ndarray:
+        """
+        Calculates the gradient (w.r.t. major radius) of the ``lpm`` model.
+        See the documentation for ``lpm`` for details of the model itself.
+
+        :param R: \
+            Radius values at which the gradient is evaluated.
+
+        :param theta: \
+            The model parameters as an array.
+
+        :return: \
+            The predicted gradient profile at the given radius values.
+        """
         R0, h, w, a, b, ln_k = theta
         k = exp(ln_k)
         z = 4 * (R - R0) / w

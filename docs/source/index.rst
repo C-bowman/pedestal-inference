@@ -12,4 +12,4 @@ measurements.
 
    pedinf
    analysis
-   model
+   models
