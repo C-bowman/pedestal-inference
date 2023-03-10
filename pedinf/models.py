@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Tuple
 from numpy import exp, log, ndarray, zeros
-from scipy.interpolate import RectBivariateSpline
-from itertools import product
 
 
 class ProfileModel(ABC):
@@ -85,8 +83,8 @@ class mtanh(ProfileModel):
         sigma = 0.25 * w
         z = (R0 - R) / sigma
         G = h - b + (a * sigma) * z
-        L = 1 + exp(-z)
-        return (G / L) + b
+        iL = 1 + exp(-z)
+        return (G / iL) + b
 
     @staticmethod
     def gradient(R: ndarray, theta: ndarray) -> ndarray:
@@ -108,25 +106,42 @@ class mtanh(ProfileModel):
         z = (R0 - R) / sigma
         L = 1 / (1 + exp(-z))
         c = (h - b) / sigma
-        return -L * ((1 - L) * (c + a*z) + a)
+        return -L * ((1 - L) * (c + a * z) + a)
 
     @staticmethod
     def jacobian(R: ndarray, theta: ndarray) -> ndarray:
         R0, h, w, a, b = theta
-        z = 4 * (R - R0) / w
-        L = 1 / (1 + exp(z))
-        ln_L = log(L)
-        S = -ln_L - z
+        sigma = 0.25 * w
+        z = (R0 - R) / sigma
+        L = 1 / (1 + exp(-z))
 
         jac = zeros([R.size, 5])
-        df_dz = (h - b) * L * (1 - L) + (0.25 * a * w) * L
-        jac[:, 0] = (4 / w) * df_dz
+        c = (h - b) / sigma
+        q = L * (1 - L) * (c + a * z)
+        jac[:, 0] = q + L * a
         jac[:, 1] = L
-        jac[:, 2] = (z / w) * df_dz + (0.25 * a) * S
-        jac[:, 3] = (0.25 * w) * S
+        jac[:, 2] = -0.25 * q * z
+        jac[:, 3] = (sigma * z) * L
         jac[:, 4] = 1 - L
-        jac[:, 5] = (h - b) * L * ln_L
         return jac
+
+    @staticmethod
+    def prediction_and_jacobian(R: ndarray, theta: ndarray) -> Tuple[ndarray]:
+        R0, h, w, a, b = theta
+        sigma = 0.25 * w
+        z = (R0 - R) / sigma
+        L = 1 / (1 + exp(-z))
+        G = (h - b) + (a * sigma) * z
+        prediction = L * G + b
+
+        jac = zeros([R.size, 5])
+        q = L * (1 - L) * G / sigma
+        jac[:, 0] = q + L * a
+        jac[:, 1] = L
+        jac[:, 2] = -0.25 * q * z
+        jac[:, 3] = (sigma * z) * L
+        jac[:, 4] = 1 - L
+        return prediction, jac
 
 
 class lpm(ProfileModel):
@@ -214,7 +229,7 @@ class lpm(ProfileModel):
         k = exp(ln_k)
         z = 4 * (R - R0) / w
         L = 1 / (1 + exp(z))
-        return -(4 * (h - b) * k / w) * (1 - L) * L**k - a*L
+        return -(4 * (h - b) * k / w) * (1 - L) * L**k - a * L
 
     @staticmethod
     def jacobian(R: ndarray, theta: ndarray) -> ndarray:

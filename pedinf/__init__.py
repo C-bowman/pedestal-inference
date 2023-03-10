@@ -3,7 +3,8 @@ from numpy.random import normal
 from scipy.optimize import fmin_l_bfgs_b, differential_evolution
 from dataclasses import dataclass
 from itertools import product
-from pedinf.models import SpectrometerModel, ProfileModel, mtanh
+from pedinf.models import ProfileModel, mtanh
+from pedinf.diagnostics import SpectrometerModel
 
 from inference.likelihoods import LogisticLikelihood
 from inference.priors import UniformPrior, GaussianPrior, ExponentialPrior, JointPrior

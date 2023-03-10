@@ -1,10 +1,10 @@
-from numpy import linspace, array, empty_like, zeros
+from numpy import linspace, empty_like, zeros, allclose
 from numpy.random import default_rng
 from pedinf.models import ProfileModel, mtanh, lpm
 import pytest
 
 
-test_models = [lpm]
+test_models = [lpm, mtanh]
 parameter_test_ranges = {
     "R0 (pedestal location)": (1.3, 1.45),
     "h (pedestal height)": (50., 300.),
@@ -22,34 +22,6 @@ def test_param_ranges():
         assert all(p in parameter_test_ranges for p in model.parameters)
 
 
-def finite_difference(func=None, x0=None, delta=1e-5, vectorised_arguments=False):
-    grad = zeros(x0.size)
-    for i in range(x0.size):
-        x1 = x0.copy()
-        x2 = x0.copy()
-        dx = x0[i] * delta
-
-        x1[i] -= dx
-        x2[i] += dx
-
-        if vectorised_arguments:
-            f1 = func(x1)
-            f2 = func(x2)
-        else:
-            f1 = func(*x1)
-            f2 = func(*x2)
-
-        grad[i] = 0.5 * (f2 - f1) / dx
-    return grad
-
-
-def abs_frac_error(a, b):
-    zero_inds = (a == 0.0) & (b == 0.0)
-    af_err = abs(a / b - 1.0)
-    af_err[zero_inds] = 0.0
-    return af_err
-
-
 def build_test_data(model: ProfileModel, n_points=10):
     R = linspace(1.2, 1.5, 256)
     theta = zeros([n_points, model.n_parameters])
@@ -64,9 +36,15 @@ def test_jacobian(model: ProfileModel):
     delta = 1e-6
 
     for t in theta:
-        jacobian = model.jacobian(R, t)
-        fd_jac = empty_like(jacobian)
-        for i in range(jacobian.shape[1]):
+        prediction_1 = model.prediction(R, t)
+        jacobian_1 = model.jacobian(R, t)
+        prediction_2, jacobian_2 = model.prediction_and_jacobian(R, t)
+
+        assert allclose(prediction_1, prediction_2)
+        assert allclose(jacobian_1, jacobian_2)
+
+        fd_jac = empty_like(jacobian_1)
+        for i in range(jacobian_1.shape[1]):
             t1, t2 = t.copy(), t.copy()
             dt = t[i] * delta
             t1[i] -= dt
@@ -77,8 +55,8 @@ def test_jacobian(model: ProfileModel):
             df = 0.5 * (f2 - f1) / dt
             fd_jac[:, i] = df
 
-        error = abs(jacobian - fd_jac) / abs(fd_jac).max()
-        assert error.max() < 1e-4
+        error = abs(jacobian_1 - fd_jac) / abs(fd_jac).max()
+        assert error.max() < 1e-6
 
 
 @pytest.mark.parametrize("model", test_models)
