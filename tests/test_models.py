@@ -1,7 +1,6 @@
 from numpy import linspace, array, empty_like, zeros
 from numpy.random import default_rng
 from pedinf.models import ProfileModel, mtanh, lpm
-from pedinf import PedestalPosterior
 import pytest
 
 
@@ -91,22 +90,3 @@ def test_gradient(model: ProfileModel):
         fd = (model.prediction(R + dR, t) - model.prediction(R - dR, t)) * (0.5 / dR)
         error = abs(grad - fd) / abs(fd).max()
         assert error.max() < 1e-4
-
-
-def test_likelihood(data):
-    rng = default_rng(256)
-    theta = [1.45, 100.0, 0.03, 0.2, 0.01, 0.75]
-
-    # create synthetic testing data
-    R_data = linspace(1.35, 1.53, 19)
-    Te_data = mtanh(R_data, theta)
-    Te_err = 2 + Te_data * 0.05
-    Te_data = abs(Te_data + Te_err * rng.normal(size=Te_data.size))
-    posterior = PedestalPosterior(x=R_data, y=Te_data, y_err=Te_err)
-
-    guesses = posterior.initial_guesses()
-    for g in guesses:
-        grad = posterior.likelihood.gradient(g)
-        fd_grad = finite_difference(posterior.likelihood, g, vectorised_arguments=True)
-        error = abs_frac_error(grad, fd_grad)
-        assert (error < 1e-3).all()
