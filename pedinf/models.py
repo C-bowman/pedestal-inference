@@ -110,6 +110,21 @@ class mtanh(ProfileModel):
 
     @staticmethod
     def jacobian(R: ndarray, theta: ndarray) -> ndarray:
+        r"""
+        Calculates the jacobian of the ``mtanh`` model. The jacobian is a matrix where
+        element :math:`i, j` is the derivative of the model prediction at the
+        :math:`i`'th radial position with respect to the :math:`j`'th model parameter.
+        See the documentation for ``mtanh`` for details of the model itself.
+
+        :param R: \
+            Radius values at which the gradient is evaluated.
+
+        :param theta: \
+            The model parameters as an array.
+
+        :return: \
+            The jacobian matrix for the given radius values.
+        """
         R0, h, w, a, b = theta
         sigma = 0.25 * w
         z = (R0 - R) / sigma
@@ -127,6 +142,21 @@ class mtanh(ProfileModel):
 
     @staticmethod
     def prediction_and_jacobian(R: ndarray, theta: ndarray) -> Tuple[ndarray]:
+        r"""
+        Calculates the prediction and the jacobian of the ``mtanh`` model. The jacobian
+        is a matrix where element :math:`i, j` is the derivative of the model prediction
+        at the :math:`i`'th radial position with respect to the :math:`j`'th model parameter.
+        See the documentation for ``mtanh`` for details of the model itself.
+
+        :param R: \
+            Radius values at which the gradient is evaluated.
+
+        :param theta: \
+            The model parameters as an array.
+
+        :return: \
+            The model prediction and the jacobian matrix for the given radius values.
+        """
         R0, h, w, a, b = theta
         sigma = 0.25 * w
         z = (R0 - R) / sigma
@@ -233,6 +263,21 @@ class lpm(ProfileModel):
 
     @staticmethod
     def jacobian(R: ndarray, theta: ndarray) -> ndarray:
+        r"""
+        Calculates the jacobian of the ``lpm`` model. The jacobian is a matrix where
+        element :math:`i, j` is the derivative of the model prediction at the
+        :math:`i`'th radial position with respect to the :math:`j`'th model parameter.
+        See the documentation for ``lpm`` for details of the model itself.
+
+        :param R: \
+            Radius values at which the gradient is evaluated.
+
+        :param theta: \
+            The model parameters as an array.
+
+        :return: \
+            The jacobian matrix for the given radius values.
+        """
         R0, h, w, a, b, ln_k = theta
         k = exp(ln_k)
         z = 4 * (R - R0) / w
@@ -253,6 +298,21 @@ class lpm(ProfileModel):
 
     @staticmethod
     def prediction_and_jacobian(R: ndarray, theta: ndarray) -> Tuple[ndarray]:
+        r"""
+        Calculates the prediction and the jacobian of the ``lpm`` model. The jacobian
+        is a matrix where element :math:`i, j` is the derivative of the model prediction
+        at the :math:`i`'th radial position with respect to the :math:`j`'th model parameter.
+        See the documentation for ``lpm`` for details of the model itself.
+
+        :param R: \
+            Radius values at which the gradient is evaluated.
+
+        :param theta: \
+            The model parameters as an array.
+
+        :return: \
+            The model prediction and the jacobian matrix for the given radius values.
+        """
         R0, h, w, a, b, ln_k = theta
         k = exp(ln_k)
         z = 4 * (R - R0) / w
