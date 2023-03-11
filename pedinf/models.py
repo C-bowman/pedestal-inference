@@ -66,7 +66,7 @@ class mtanh(ProfileModel):
 
     @staticmethod
     def prediction(R: ndarray, theta: ndarray) -> ndarray:
-        r"""
+        """
         Calculates the prediction of the ``mtanh`` model.
         See the documentation for ``mtanh`` for details of the model itself.
 
@@ -110,7 +110,7 @@ class mtanh(ProfileModel):
 
     @staticmethod
     def jacobian(R: ndarray, theta: ndarray) -> ndarray:
-        r"""
+        """
         Calculates the jacobian of the ``mtanh`` model. The jacobian is a matrix where
         element :math:`i, j` is the derivative of the model prediction at the
         :math:`i`'th radial position with respect to the :math:`j`'th model parameter.
@@ -142,7 +142,7 @@ class mtanh(ProfileModel):
 
     @staticmethod
     def prediction_and_jacobian(R: ndarray, theta: ndarray) -> Tuple[ndarray]:
-        r"""
+        """
         Calculates the prediction and the jacobian of the ``mtanh`` model. The jacobian
         is a matrix where element :math:`i, j` is the derivative of the model prediction
         at the :math:`i`'th radial position with respect to the :math:`j`'th model parameter.
@@ -219,7 +219,7 @@ class lpm(ProfileModel):
 
     @staticmethod
     def prediction(R: ndarray, theta: ndarray) -> ndarray:
-        r"""
+        """
         Calculates the prediction of the ``lpm`` model.
         See the documentation for ``lpm`` for details of the model itself.
 
@@ -263,7 +263,7 @@ class lpm(ProfileModel):
 
     @staticmethod
     def jacobian(R: ndarray, theta: ndarray) -> ndarray:
-        r"""
+        """
         Calculates the jacobian of the ``lpm`` model. The jacobian is a matrix where
         element :math:`i, j` is the derivative of the model prediction at the
         :math:`i`'th radial position with respect to the :math:`j`'th model parameter.
@@ -298,7 +298,7 @@ class lpm(ProfileModel):
 
     @staticmethod
     def prediction_and_jacobian(R: ndarray, theta: ndarray) -> Tuple[ndarray]:
-        r"""
+        """
         Calculates the prediction and the jacobian of the ``lpm`` model. The jacobian
         is a matrix where element :math:`i, j` is the derivative of the model prediction
         at the :math:`i`'th radial position with respect to the :math:`j`'th model parameter.
