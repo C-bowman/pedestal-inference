@@ -32,7 +32,37 @@ def calculate_filter_response(
     transmission: ndarray,
     laser_wavelength=1.064e-6,
 ) -> ndarray:
+    """
+    Calculates the integral of the product of the transmission of a given filter and the
+    Thomson scattering spectrum for various combinations of electron temperature and
+    scattering angle.
 
+    This is useful for generating splines that allow for efficient forward-modelling
+    of Thomson-scattering spectrum measurements.
+
+    :param electron_temperature: \
+        The electron temperature values (in eV) at which to calculate the filter response.
+
+    :param scattering_angle: \
+        The scattering-angle values (in radians) at which to calculate the filter response.
+
+    :param wavelength: \
+        The wavelength axis (in meters) corresponding to the given filter transmission values.
+        Must be sorted in order of increasing wavelength.
+
+    :param transmission: \
+        The transmission values of the filter as a function of wavelength.
+
+    :param laser_wavelength: \
+        The wavelength (in meters) of the laser light which being scattered by the
+        electrons.
+
+    :return: \
+        The filter response values for all pairings of the given electron temperature
+        and scattering angle values as a 2D numpy array. If ``n`` electron temperature
+        values and ``m`` scattering angle values are given, the returned array will have
+        shape ``(n, m)``.
+    """
     integration_weights = trapezium_weights(wavelength)
     integration_weights *= transmission / laser_wavelength
 
