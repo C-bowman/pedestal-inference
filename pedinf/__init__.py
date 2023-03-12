@@ -18,7 +18,7 @@ def edge_profile_sample(
     y_err: ndarray,
     n_samples=10000,
     n_walkers=500,
-    plot_diagnostics=False
+    plot_diagnostics=False,
 ):
     """
     Generates a sample of possible edge profiles given Thomson-scattering
@@ -93,12 +93,13 @@ class PedestalPosterior:
         self.sigma = y_err
         self.model = lpm
 
+        ymax = self.y.max()
         self.bounds = [
             (self.x.min(), self.x.max()),
-            (self.y.max() * 0.05, self.y.max() * 1.5),
+            (ymax * 0.05, ymax * 1.5),
             (self.x.ptp() * 1e-2, self.x.ptp()),
-            (-5, 20),
-            (1e-3, 0.05),
+            (-ymax * 5, ymax * 20),
+            (ymax * 1e-3, ymax * 0.05),
             (-2, 1.0),
         ]
 
@@ -116,7 +117,7 @@ class PedestalPosterior:
                     upper=[b[1] for b in self.bounds[:4]],
                     variable_indices=[0, 1, 2, 3],
                 ),
-                ExponentialPrior(beta=5e-3, variable_indices=[4]),
+                ExponentialPrior(beta=5e-3 * ymax, variable_indices=[4]),
                 GaussianPrior(mean=0.0, sigma=0.5, variable_indices=[5]),
             ],
             n_variables=6,
@@ -129,8 +130,8 @@ class PedestalPosterior:
             dx * array([0.3, 0.5, 0.7]) + self.x.min(),
             self.y.max() * array([0.3, 0.5, 0.7]),
             dx * array([0.07, 0.15, 0.3]),
-            [5.0],
-            [0.01],
+            [dy / dx],
+            [0.01 * self.y.max()],
             [-0.35, 0.01, 0.35],
         )
         return [array(g) for g in guesses]
@@ -168,7 +169,7 @@ class SpectrumData:
         assert self.spectra.shape[0] == self.spatial_channels.shape[0]
         bad_data = ~isfinite(self.spectra) | ~isfinite(self.errors)
         if bad_data.any():
-            self.spectra[bad_data] = 0.
+            self.spectra[bad_data] = 0.0
             self.errors[bad_data] = self.spectra.max() * 1e10
 
         # check validity of data values
