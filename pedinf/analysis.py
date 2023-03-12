@@ -261,9 +261,12 @@ def pressure_profile_and_gradient(
         model: Type[ProfileModel]
 ):
     """
-    Calculates the electron pressure and pressure gradient profiles at
-    specified major radius positions, given samples of the edge electron
-    temperature and density profiles.
+    Calculates the electron pressure and pressure gradient profiles at specified major
+    radius positions, given samples of the edge electron temperature and density profiles.
+
+    It is assumed that the electron temperatures and densities have units of :math:`eV`
+    and :math:`m^{-3}` respectively, and the returned electron pressure will have units
+    of :math:`N / m^2`.
 
     :param radius: \
         Major radius values at which to evaluate the pressure profiles as
@@ -308,6 +311,10 @@ def pressure_profile_and_gradient(
 
         pe_profs[smp, :] = te_prof * ne_prof
         pe_grads[smp, :] = te_prof * ne_grad + ne_prof * te_grad
+
+    # convert pressure from eV / m^3 to J / m^3 by multiplying by electron charge
+    pe_profs *= 1.60217663e-19
+    pe_grads *= 1.60217663e-19
 
     return {
         "radius": radius,
