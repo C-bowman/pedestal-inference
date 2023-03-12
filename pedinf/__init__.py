@@ -3,7 +3,7 @@ from numpy.random import normal
 from scipy.optimize import fmin_l_bfgs_b, differential_evolution
 from dataclasses import dataclass
 from itertools import product
-from pedinf.models import ProfileModel, mtanh
+from pedinf.models import ProfileModel, lpm
 from pedinf.diagnostics import SpectrometerModel
 
 from inference.likelihoods import LogisticLikelihood
@@ -13,13 +13,16 @@ from inference.mcmc import EnsembleSampler
 
 
 def edge_profile_sample(
-    radius, y_data, y_err, n_samples=10000, n_walkers=500, plot_diagnostics=False
+    radius: ndarray,
+    y_data: ndarray,
+    y_err: ndarray,
+    n_samples=10000,
+    n_walkers=500,
+    plot_diagnostics=False
 ):
     """
     Generates a sample of possible edge profiles given Thomson-scattering
-    measurements of the plasma edge. The profile model used is a modified
-    version of the 'mtanh' function - see ``pedinf.model.mtanh`` for
-    details.
+    measurements of the plasma edge.
 
     :param radius: \
         The major radius values of the Thomson-scattering measurements
@@ -43,7 +46,7 @@ def edge_profile_sample(
         Selects whether diagnostic plots for the sampling a displayed.
 
     :return: \
-        The samples as a 2D ``numpy.ndarray`` array of shape ``(n_samples, 6)``.
+        The samples as a 2D ``numpy.ndarray`` array of shape ``(n_samples, n_parameters)``.
     """
     # filter out any points which aren't finite
     finite = isfinite(y_data) & isfinite(y_err)
@@ -84,11 +87,11 @@ def edge_profile_sample(
 
 
 class PedestalPosterior:
-    def __init__(self, x, y, y_err, model: ProfileModel, likelihood=LogisticLikelihood):
+    def __init__(self, x, y, y_err, likelihood=LogisticLikelihood):
         self.x = x
         self.y = y
         self.sigma = y_err
-        self.model = model
+        self.model = lpm
 
         self.bounds = [
             (self.x.min(), self.x.max()),

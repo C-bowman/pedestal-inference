@@ -49,11 +49,8 @@ def test_jacobian(model: ProfileModel):
             dt = t[i] * delta
             t1[i] -= dt
             t2[i] += dt
-            f1 = model.prediction(R, t1)
-            f2 = model.prediction(R, t2)
-
-            df = 0.5 * (f2 - f1) / dt
-            fd_jac[:, i] = df
+            df = model.prediction(R, t2) - model.prediction(R, t1)
+            fd_jac[:, i] = 0.5 * df / dt
 
         error = abs(jacobian_1 - fd_jac) / abs(fd_jac).max()
         assert error.max() < 1e-6
