@@ -36,8 +36,8 @@ class mtanh(ProfileModel):
 
     .. math::
 
-       \mathrm{mtanh}(R, \, \underline{\theta}) = L(z) \left(h + \frac{awz}{4} \right) + b,
-       \quad \quad L(x) = \frac{1}{1 + e^{-x}} \quad \quad z = -4 \frac{R - R_0}{w}.
+       \mathrm{mtanh}(R, \, \underline{\theta}) = L(z) \left(h - b + \frac{awz}{4} \right) + b,
+       \quad \quad L(x) = \frac{1}{1 + e^{-x}}, \quad \quad z = -4 \frac{R - R_0}{w}.
 
     The model parameter vector :math:`\underline{\theta}` has the following order:
 
@@ -182,8 +182,8 @@ class lpm(ProfileModel):
 
     .. math::
 
-       \mathrm{lpm}(R, \, \underline{\theta}) = h\,L^{k}(z + \ln{k}) + \frac{aw}{4}S(z) + b,
-       \quad \quad L(x) = \frac{1}{1 + e^{-x}} \quad \quad z = -4 \frac{R - R_0}{w}.
+       \mathrm{lpm}(R, \, \underline{\theta}) = (h - b)\,L^{k}(z + \ln{k}) + \frac{aw}{4}S(z) + b,
+       \quad \quad L(x) = \frac{1}{1 + e^{-x}}, \quad \quad z = -4 \frac{R - R_0}{w}.
 
     and
 
