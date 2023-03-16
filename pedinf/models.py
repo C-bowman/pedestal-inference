@@ -182,7 +182,7 @@ class lpm(ProfileModel):
 
     .. math::
 
-       \mathrm{lpm}(R, \, \underline{\theta}) = h\,L^{k}(z) + \frac{aw}{4}S(z) + b,
+       \mathrm{lpm}(R, \, \underline{\theta}) = h\,L^{k}(z + \ln{k}) + \frac{aw}{4}S(z) + b,
        \quad \quad L(x) = \frac{1}{1 + e^{-x}} \quad \quad z = -4 \frac{R - R_0}{w}.
 
     and
@@ -234,11 +234,12 @@ class lpm(ProfileModel):
         """
         R0, h, w, a, b, ln_k = theta
         sigma = 0.25 * w
-        z = (R - R0) / sigma
-        exp_p1 = 1 + exp(z)
-        G = (a * sigma) * (log(exp_p1) - z)
-        L = (h - b) * exp_p1 ** -exp(ln_k)
-        return (G + L) + b
+        k = exp(ln_k)
+        z = (R0 - R) / sigma
+        iL = 1 + exp(-z - ln_k)
+        G = (a * sigma) * log(1 + exp(z))
+        L = (h - b) * iL ** -k
+        return G + L + b
 
     @staticmethod
     def gradient(R: ndarray, theta: ndarray) -> ndarray:
@@ -257,9 +258,11 @@ class lpm(ProfileModel):
         """
         R0, h, w, a, b, ln_k = theta
         k = exp(ln_k)
-        z = 4 * (R - R0) / w
-        L = 1 / (1 + exp(z))
-        return -(4 * (h - b) * k / w) * (1 - L) * L**k - a * L
+        sigma = 0.25 * w
+        z = (R0 - R) / sigma
+        exp_z = exp(-z)
+        L = k / (k + exp_z)
+        return -((h - b) * k / sigma) * (1 - L) * L**k - a / (1 + exp_z)
 
     @staticmethod
     def jacobian(R: ndarray, theta: ndarray) -> ndarray:
@@ -280,20 +283,22 @@ class lpm(ProfileModel):
         """
         R0, h, w, a, b, ln_k = theta
         k = exp(ln_k)
-        z = 4 * (R - R0) / w
-        L = 1 / (1 + exp(z))
+        sigma = 0.25 * w
+        z = (R0 - R) / sigma
+        exp_z = exp(-z)
+        L = k / (k + exp_z)
         ln_L = log(L)
-        S = -ln_L - z
+        S = log(1 + exp_z) + z
         Lk = L**k
 
         jac = zeros([R.size, 6])
-        df_dz = (k * (h - b)) * Lk * (1 - L) + (0.25 * a * w) * L
-        jac[:, 0] = (4 / w) * df_dz
+        df_dz = (k * (h - b)) * Lk * (1 - L) + (a * sigma) / (1 + exp_z)
+        jac[:, 0] = df_dz / sigma
         jac[:, 1] = Lk
-        jac[:, 2] = (z / w) * df_dz + (0.25 * a) * S
-        jac[:, 3] = (0.25 * w) * S
+        jac[:, 2] = -(z / w) * df_dz + (0.25*a) * S
+        jac[:, 3] = sigma * S
         jac[:, 4] = 1 - Lk
-        jac[:, 5] = (k * (h - b)) * Lk * ln_L
+        jac[:, 5] = k*(h - b) * Lk * (1 + ln_L - L)
         return jac
 
     @staticmethod
@@ -315,19 +320,21 @@ class lpm(ProfileModel):
         """
         R0, h, w, a, b, ln_k = theta
         k = exp(ln_k)
-        z = 4 * (R - R0) / w
-        L = 1 / (1 + exp(z))
+        sigma = 0.25 * w
+        z = (R0 - R) / sigma
+        exp_z = exp(-z)
+        L = k / (k + exp_z)
         ln_L = log(L)
-        S = -ln_L - z
+        S = log(1 + exp_z) + z
         Lk = L**k
 
-        prediction = Lk * (h - b) + (0.25 * a * w) * S + b
+        prediction = Lk * (h - b) + (a * sigma) * S + b
         jac = zeros([R.size, 6])
-        df_dz = (k * (h - b)) * Lk * (1 - L) + (0.25 * a * w) * L
-        jac[:, 0] = (4 / w) * df_dz
+        df_dz = (k * (h - b)) * Lk * (1 - L) + (a * sigma) / (1 + exp_z)
+        jac[:, 0] = df_dz / sigma
         jac[:, 1] = Lk
-        jac[:, 2] = (z / w) * df_dz + (0.25 * a) * S
-        jac[:, 3] = (0.25 * w) * S
+        jac[:, 2] = -(z / w) * df_dz + (0.25*a) * S
+        jac[:, 3] = sigma * S
         jac[:, 4] = 1 - Lk
-        jac[:, 5] = (k * (h - b)) * Lk * ln_L
+        jac[:, 5] = k*(h - b) * Lk * (1 + ln_L - L)
         return prediction, jac
