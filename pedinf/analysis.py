@@ -1,9 +1,12 @@
 from numpy import linspace, mean, ndarray, std, isfinite, zeros
 from typing import Type
+from functools import partial
 from numpy.random import normal
+from scipy.optimize import minimize
 from warnings import warn
 from pedinf.models import ProfileModel
 from inference.pdf import sample_hdi
+from inference.likelihoods import LogisticLikelihood
 
 
 def locate_radius(
@@ -327,3 +330,60 @@ def pressure_profile_and_gradient(
         "pe_gradient_hdi_65": sample_hdi(pe_grads, fraction=0.65),
         "pe_gradient_hdi_95": sample_hdi(pe_grads, fraction=0.95),
     }
+
+
+def pressure_parameters(
+        ne_parameters: ndarray,
+        te_parameters: ndarray,
+        model: Type[ProfileModel]
+):
+    """
+    Approximates the electron pressure profile parameters by re-fitting the profile
+    model to the predicted pressure profile obtained from the product of the predicted
+    temperature and density profiles.
+
+    :param ne_parameters:
+    :param te_parameters:
+    :param model:
+    :return:
+    """
+    if model.name not in ["mtanh", "lpm"]:
+        raise TypeError()
+
+    initial_guess = 0.5 * (ne_parameters + te_parameters)
+    i = model.parameters["pedestal_height"]
+    j = model.parameters["pedestal_top_gradient"]
+    k = model.parameters["background_level"]
+    initial_guess[i] = ne_parameters[i] * te_parameters[i]
+    initial_guess[j] = ne_parameters[i] * te_parameters[j] + ne_parameters[j] * te_parameters[i]
+    initial_guess[k] = ne_parameters[k] * te_parameters[k]
+
+    R = linspace(1.25, 1.5, 256)
+
+    pe_prediction = model.prediction(R, ne_parameters) * model.prediction(R, te_parameters)
+    forward_model = partial(model.prediction, R)
+    forward_model_jacobian = partial(model.jacobian, R)
+
+    L = LogisticLikelihood(
+        y_data=pe_prediction,
+        sigma=zeros(256) + initial_guess[i]*0.05,
+        forward_model=forward_model,
+        forward_model_jacobian=forward_model_jacobian
+    )
+
+    bounds = {
+        "pedestal_location": (0., None),
+        "pedestal_height": (0., None),
+        "pedestal_width": (1e-3, None),
+        "pedestal_top_gradient": (None, None),
+        "background_level": (0., None),
+        "logistic_shape_parameter": (0.05, None),
+    }
+
+    result = minimize(
+        fun=L.cost,
+        x0=initial_guess,
+        jac=L.cost_gradient,
+        method="L-BFGS-B",
+        bounds=[bounds[p] for p in model.parameters]
+    )
