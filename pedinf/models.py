@@ -62,11 +62,11 @@ class mtanh(ProfileModel):
     name = "mtanh"
     n_parameters = 5
     parameters = {
-        "R0 (pedestal location)": 0,
-        "h (pedestal height)": 1,
-        "w (pedestal width)": 2,
-        "a (pedestal top gradient)": 3,
-        "b (background level)": 4,
+        "pedestal_location": 0,
+        "pedestal_height": 1,
+        "pedestal_width": 2,
+        "pedestal_top_gradient": 3,
+        "background_level": 4,
     }
 
     @staticmethod
@@ -200,7 +200,7 @@ class lpm(ProfileModel):
 
     .. math::
 
-       \underline{\theta} = \left[ \,  R_0, \, h, \, w, \, a, \, b, \, \ln{k} \, \right],
+       \underline{\theta} = \left[ \,  R_0, \, h, \, w, \, a, \, b, \, k \, \right],
 
     where
 
@@ -209,17 +209,17 @@ class lpm(ProfileModel):
      - :math:`w` is the pedestal width.
      - :math:`a` is the profile gradient beyond the pedestal top.
      - :math:`b` is the background level.
-     - :math:`\ln{k}` is a shaping parameter which affects how the profile decays.
+     - :math:`k` is a shaping parameter which affects how the profile decays.
     """
     name = "lpm"
     n_parameters = 6
     parameters = {
-        "R0 (pedestal location)": 0,
-        "h (pedestal height)": 1,
-        "w (pedestal width)": 2,
-        "a (pedestal top gradient)": 3,
-        "b (background level)": 4,
-        "ln_k (logistic shape parameter)": 5,
+        "pedestal_location": 0,
+        "pedestal_height": 1,
+        "pedestal_width": 2,
+        "pedestal_top_gradient": 3,
+        "background_level": 4,
+        "logistic_shape_parameter": 5,
     }
 
     @staticmethod
@@ -237,9 +237,9 @@ class lpm(ProfileModel):
         :return: \
             The predicted profile at the given radius values.
         """
-        R0, h, w, a, b, ln_k = theta
+        R0, h, w, a, b, k = theta
         sigma = 0.25 * w
-        k = exp(ln_k)
+        ln_k = log(k)
         z = (R0 - R) / sigma
         iL = 1 + exp(-z - ln_k)
         G = (a * sigma) * log(1 + exp(z))
@@ -261,8 +261,7 @@ class lpm(ProfileModel):
         :return: \
             The predicted gradient profile at the given radius values.
         """
-        R0, h, w, a, b, ln_k = theta
-        k = exp(ln_k)
+        R0, h, w, a, b, k = theta
         sigma = 0.25 * w
         z = (R0 - R) / sigma
         exp_z = exp(-z)
@@ -286,8 +285,7 @@ class lpm(ProfileModel):
         :return: \
             The jacobian matrix for the given radius values.
         """
-        R0, h, w, a, b, ln_k = theta
-        k = exp(ln_k)
+        R0, h, w, a, b, k = theta
         sigma = 0.25 * w
         z = (R0 - R) / sigma
         exp_z = exp(-z)
@@ -303,7 +301,7 @@ class lpm(ProfileModel):
         jac[:, 2] = -(z / w) * df_dz + (0.25*a) * S
         jac[:, 3] = sigma * S
         jac[:, 4] = 1 - Lk
-        jac[:, 5] = k*(h - b) * Lk * (1 + ln_L - L)
+        jac[:, 5] = (h - b) * Lk * (1 + ln_L - L)
         return jac
 
     @staticmethod
@@ -323,8 +321,7 @@ class lpm(ProfileModel):
         :return: \
             The model prediction and the jacobian matrix for the given radius values.
         """
-        R0, h, w, a, b, ln_k = theta
-        k = exp(ln_k)
+        R0, h, w, a, b, k = theta
         sigma = 0.25 * w
         z = (R0 - R) / sigma
         exp_z = exp(-z)
@@ -341,5 +338,5 @@ class lpm(ProfileModel):
         jac[:, 2] = -(z / w) * df_dz + (0.25*a) * S
         jac[:, 3] = sigma * S
         jac[:, 4] = 1 - Lk
-        jac[:, 5] = k*(h - b) * Lk * (1 + ln_L - L)
+        jac[:, 5] = (h - b) * Lk * (1 + ln_L - L)
         return prediction, jac

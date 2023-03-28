@@ -6,12 +6,12 @@ import pytest
 
 test_models = [lpm, mtanh]
 parameter_test_ranges = {
-    "R0 (pedestal location)": (1.3, 1.45),
-    "h (pedestal height)": (50., 300.),
-    "w (pedestal width)": (0.005, 0.02),
-    "a (pedestal top gradient)": (-100., 1000.),
-    "b (background level)": (0.5, 15.),
-    "ln_k (logistic shape parameter)": (-2, 1),
+    "pedestal_location": (1.3, 1.45),
+    "pedestal_height": (50., 300.),
+    "pedestal_width": (0.005, 0.02),
+    "pedestal_top_gradient": (-100., 1000.),
+    "background_level": (0.5, 15.),
+    "logistic_shape_parameter": (0.1, 3),
 }
 
 rng = default_rng(123)
