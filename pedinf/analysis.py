@@ -1,9 +1,12 @@
-from numpy import linspace, mean, ndarray, std, isfinite, zeros
+from numpy import linspace, mean, ndarray, std, sqrt, isfinite, zeros
 from typing import Type
+from functools import partial
 from numpy.random import normal
+from scipy.optimize import minimize
 from warnings import warn
 from pedinf.models import ProfileModel
 from inference.pdf import sample_hdi
+from inference.likelihoods import GaussianLikelihood
 
 
 def locate_radius(
@@ -327,3 +330,98 @@ def pressure_profile_and_gradient(
         "pe_gradient_hdi_65": sample_hdi(pe_grads, fraction=0.65),
         "pe_gradient_hdi_95": sample_hdi(pe_grads, fraction=0.95),
     }
+
+
+def pressure_parameters(
+        ne_parameters: ndarray,
+        te_parameters: ndarray,
+        model: Type[ProfileModel],
+        return_diagnostics=False
+):
+    """
+    Approximates the electron pressure profile parameters by re-fitting the profile
+    model to the predicted pressure profile obtained from the product of the predicted
+    temperature and density profiles.
+
+    :param ne_parameters: \
+        The density parameter vector for the given profile model.
+
+    :param te_parameters: \
+        The temperature parameter vector for the given profile model.
+
+    :param model: \
+        Pass either the ``mtanh` or ``lpm`` models from ``pedinf.models``.
+
+    :param return_diagnostics: \
+        If set as ``True``, a dictionary containing diagnostic information about
+        the fit to the pressure will be returned alongside the fit parameters.
+
+    :return: \
+        The fitted pressure profile parameters.
+    """
+
+    R0_index = model.parameters["pedestal_location"]
+    w_index = model.parameters["pedestal_width"]
+    ne_R0, te_R0 = ne_parameters[R0_index], te_parameters[R0_index]
+    ne_w, te_w = ne_parameters[w_index], te_parameters[w_index]
+
+    # use te / ne parameters to determine the range over which to fit the pressure
+    n_points = 128
+    R_min = min(ne_R0, te_R0) - 2*(ne_w + te_w)
+    R_max = max(ne_R0, te_R0) + 2*(ne_w + te_w)
+    R = linspace(R_min, R_max, n_points)
+
+    ec = 1.60217663e-19  # electron charge used to convert from eV / m^3 to J / m^3
+    pe_prediction = (model.prediction(R, ne_parameters) * model.prediction(R, te_parameters)) * ec
+    forward_model = partial(model.prediction, R)
+    forward_model_jacobian = partial(model.jacobian, R)
+
+    # build an initial guess for the pressure parameters
+    initial_guess = 0.5 * (ne_parameters + te_parameters)
+    i = model.parameters["pedestal_height"]
+    j = model.parameters["pedestal_top_gradient"]
+    k = model.parameters["background_level"]
+    initial_guess[i] = ne_parameters[i] * te_parameters[i] * ec
+    initial_guess[j] = (ne_parameters[i] * te_parameters[j] + ne_parameters[j] * te_parameters[i]) * ec
+    initial_guess[k] = ne_parameters[k] * te_parameters[k] * ec
+    # set location guess to be position of maximum gradient in the pressure prediction
+    initial_guess[R0_index] = R[1:-1][(pe_prediction[2:] - pe_prediction[:-2]).argmin()]
+
+    # set up a gaussian likelihood function we can maximise to estimate the pressure
+    L = GaussianLikelihood(
+        y_data=pe_prediction,
+        sigma=zeros(n_points) + initial_guess[i]*0.01,
+        forward_model=forward_model,
+        forward_model_jacobian=forward_model_jacobian
+    )
+
+    bounds = {
+        "pedestal_location": (0., None),
+        "pedestal_height": (0., None),
+        "pedestal_width": (1e-3, None),
+        "pedestal_top_gradient": (None, None),
+        "background_level": (0., None),
+        "logistic_shape_parameter": (0.05, None),
+    }
+
+    result = minimize(
+        fun=L.cost,
+        x0=initial_guess,
+        method="Nelder-Mead",
+        bounds=[bounds[p] for p in model.parameters],
+        options={"maxiter": 3000}
+    )
+
+    if return_diagnostics:
+        fit = forward_model(result.x)
+        residual = pe_prediction - fit
+        diagnostics = {
+            "max_abs_err": abs(residual).max(),
+            "rmse": sqrt((residual**2).mean()),
+            "target": pe_prediction,
+            "fit": fit,
+            "radius": R
+        }
+        return result.x, diagnostics
+    else:
+        return result.x

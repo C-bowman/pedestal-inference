@@ -10,6 +10,6 @@ measurements.
    :maxdepth: 2
    :caption: Contents:
 
-   pedinf
-   analysis
    models
+   analysis
+   pedinf
