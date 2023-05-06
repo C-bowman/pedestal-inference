@@ -1,5 +1,6 @@
 from numpy import sqrt, cos, pi, exp
-from numpy import ndarray, zeros
+from numpy import ndarray, linspace, zeros
+from scipy.interpolate import RectBivariateSpline
 
 
 def selden(Te, wavelength, theta, laser_wavelength=1.064e-6):
@@ -17,7 +18,7 @@ def selden(Te, wavelength, theta, laser_wavelength=1.064e-6):
     return spectrum
 
 
-def trapezium_weights(x):
+def trapezium_weights(x: ndarray) -> ndarray:
     weights = zeros(x.size)
     weights[1:-1] = x[2:] - x[:-2]
     weights[0] = x[1] - x[0]
@@ -73,3 +74,58 @@ def calculate_filter_response(
         laser_wavelength=laser_wavelength,
     )
     return (spectrum * integration_weights[:, None, None]).sum(axis=0)
+
+
+class SpectralResponse:
+    def __init__(
+        self, ln_te_axes: ndarray, scattering_angle_axes: ndarray, response: ndarray
+    ):
+        self.ln_te = ln_te_axes
+        self.scattering_angle = scattering_angle_axes
+        self.response = response
+
+        # build the splines for all spatial / spectral channels
+        n_positions, n_spectra = self.response.shape
+        self.splines = []
+        for i in range(n_positions):
+            self.splines.append(
+                [
+                    RectBivariateSpline(
+                        x=self.ln_te[i, :],
+                        y=self.scattering_angle[i, :],
+                        z=self.response[i, j, :, :],
+                    )
+                    for j in range(n_spectra)
+                ]
+            )
+
+    @classmethod
+    def calculate_response(
+        cls,
+        wavelengths: ndarray,
+        transmissions: ndarray,
+        scattering_angles: ndarray,
+        spatial_channels: ndarray,
+    ):
+        n_temps = 64
+        n_angles = 16
+        n_spectral_chans = 4
+        ln_te = linspace(-3, 10, n_temps)
+        te_axis = exp(ln_te)
+        delta_angle = linspace(-0.03, 0.03, n_angles)
+
+        response = zeros([spatial_channels.size, n_spectral_chans, n_temps, n_angles])
+        ln_te_axes = zeros([spatial_channels.size, n_temps])
+        scattering_angle_axes = zeros([spatial_channels.size, n_angles])
+
+        for i, chan in enumerate(spatial_channels):
+            ln_te_axes[i, :] = ln_te
+            scattering_angle_axes[i, :] = delta_angle + scattering_angles[chan]
+            for j in range(n_spectral_chans):
+                response[i, j, :, :] = calculate_filter_response(
+                    electron_temperature=te_axis,
+                    scattering_angle=scattering_angle_axes[i, :],
+                    wavelength=wavelengths[chan, j, :],
+                    transmission=transmissions[chan, j, :],
+                )
+        return cls(ln_te_axes, scattering_angle_axes, response)
