@@ -85,7 +85,7 @@ class SpectralResponse:
         self.response = response
 
         # build the splines for all spatial / spectral channels
-        n_positions, n_spectra = self.response.shape
+        n_positions, n_spectra, _, _ = self.response.shape
         self.splines = []
         for i in range(n_positions):
             self.splines.append(

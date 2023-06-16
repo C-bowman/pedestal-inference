@@ -26,7 +26,7 @@ class SpectrometerModel:
         self.instfunc = instrument_function
         self.model = profile_model
 
-        self.n_positions, self.n_spectra = self.response.response.shape
+        self.n_positions, self.n_spectra, _, _ = self.response.response.shape
         self.n_weights = self.instfunc.weights.shape[1]
 
         self.te_slc = slice(0, self.model.n_parameters)
