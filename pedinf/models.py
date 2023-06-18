@@ -25,7 +25,7 @@ class ProfileModel(ABC):
 
     @staticmethod
     @abstractmethod
-    def prediction_and_jacobian(R: ndarray, theta: ndarray) -> Tuple[ndarray]:
+    def prediction_and_jacobian(R: ndarray, theta: ndarray) -> Tuple[ndarray, ndarray]:
         pass
 
 
@@ -146,7 +146,7 @@ class mtanh(ProfileModel):
         return jac
 
     @staticmethod
-    def prediction_and_jacobian(R: ndarray, theta: ndarray) -> Tuple[ndarray]:
+    def prediction_and_jacobian(R: ndarray, theta: ndarray) -> Tuple[ndarray, ndarray]:
         """
         Calculates the prediction and the jacobian of the ``mtanh`` model. The jacobian
         is a matrix where element :math:`i, j` is the derivative of the model prediction
@@ -305,7 +305,7 @@ class lpm(ProfileModel):
         return jac
 
     @staticmethod
-    def prediction_and_jacobian(R: ndarray, theta: ndarray) -> Tuple[ndarray]:
+    def prediction_and_jacobian(R: ndarray, theta: ndarray) -> Tuple[ndarray, ndarray]:
         """
         Calculates the prediction and the jacobian of the ``lpm`` model. The jacobian
         is a matrix where element :math:`i, j` is the derivative of the model prediction

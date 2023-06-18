@@ -3,7 +3,31 @@ from numpy import ndarray, linspace, zeros
 from scipy.interpolate import RectBivariateSpline
 
 
-def selden(Te, wavelength, theta, laser_wavelength=1.064e-6):
+def selden(
+    Te: ndarray, wavelength: ndarray, theta: ndarray, laser_wavelength=1.064e-6
+) -> ndarray:
+    """
+    Implementation of the 'Selden' equation, which gives a very accurate approximation
+    of the relativistic Thomson-scattering spectrum for fusion-relevant temperatures.
+
+    :param Te: \
+        The electron temperature in electron-volts.
+
+    :param wavelength: \
+        Wavelength values (in meters) at which the scattering spectrum is calculated.
+
+    :param theta: \
+        The scattering angle in radians.
+
+    :param laser_wavelength: \
+        Wavelength (in meters) of the light being scattered.
+
+    :return: \
+        The scattering spectrum. Note that the integral of the Selden equation across
+        all scattering wavelengths is equal to the laser wavelength, so the returned
+        spectrum must be divided by the laser wavelength to yield a properly normalised
+        probability distribution.
+    """
     coeff = 3.913902367e-06  # 2 divided by the electron rest-mass-energy in eV
     inv_alpha = coeff * Te
     alpha = 1.0 / inv_alpha
