@@ -170,7 +170,7 @@ class SpectrumData:
         bad_data = ~isfinite(self.spectra) | ~isfinite(self.errors)
         if bad_data.any():
             self.spectra[bad_data] = 0.0
-            self.errors[bad_data] = self.spectra.max() * 1e10
+            self.errors[bad_data] = 1e50
 
         # check validity of data values
         assert (self.errors > 0).all()
@@ -186,6 +186,7 @@ class SpectralPedestalPosterior:
         spectrometer_model: SpectrometerModel,
         spectrum_data: SpectrumData,
         likelihood=LogisticLikelihood,
+        prior=None,
     ):
         self.spectrum = spectrometer_model
         self.data = spectrum_data
@@ -195,3 +196,8 @@ class SpectralPedestalPosterior:
             sigma=self.data.errors.flatten(),
             forward_model=self.spectrum.predictions,
         )
+
+        self.prior = lambda x: 0.0 if prior is None else prior
+
+    def __call__(self, theta):
+        return self.likelihood(theta) + self.prior(theta)
