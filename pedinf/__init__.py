@@ -150,6 +150,14 @@ class PedestalPosterior:
         return bfgs_mode if fmin < de_result.fun else de_result.x
 
 
+class FlatPrior:
+    def __call__(self, theta):
+        return 0.
+
+    def gradient(self, theta):
+        return 0.
+
+
 @dataclass
 class SpectrumData:
     spectra: ndarray
@@ -195,9 +203,19 @@ class SpectralPedestalPosterior:
             y_data=self.data.spectra.flatten(),
             sigma=self.data.errors.flatten(),
             forward_model=self.spectrum.predictions,
+            forward_model_jacobian=self.spectrum.predictions_jacobian
         )
 
-        self.prior = lambda x: 0.0 if prior is None else prior
+        self.prior = FlatPrior() if prior is None else prior
 
-    def __call__(self, theta):
+    def __call__(self, theta: ndarray) -> float:
         return self.likelihood(theta) + self.prior(theta)
+
+    def gradient(self, theta: ndarray) -> ndarray:
+        return self.likelihood.gradient(theta) + self.prior.gradient(theta)
+
+    def cost(self, theta: ndarray) -> float:
+        return -self.likelihood(theta) - self.prior(theta)
+
+    def cost_gradient(self, theta: ndarray) -> ndarray:
+        return -self.likelihood.gradient(theta) - self.prior.gradient(theta)
