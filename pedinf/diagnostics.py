@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from numpy import log, ndarray, zeros
+from numpy import log, ndarray, zeros, einsum
 from pedinf.models import ProfileModel
 from pedinf.spectrum import SpectralResponse
 
@@ -59,8 +59,7 @@ class SpectrometerModel:
                 dS_dT[i, j, :] = splines[i].ev(
                     ln_te[i, :], self.instfunc.scattering_angle[i, :], dx=1
                 )
-        dS_dT *= coeffs[:, None, :]
-        dS_dT /= Te[:, None, :]
+        dS_dT *= (coeffs / Te)[:, None, :]
         dS_dn *= self.instfunc.weights[:, None, :]
         return dS_dT, dS_dn
 
@@ -69,7 +68,7 @@ class SpectrometerModel:
         ne = self.model.prediction(self.instfunc.radius, theta[self.ne_slc])
         return self.spectrum(Te, ne).flatten()
 
-    def jacobian(self, theta: ndarray):
+    def predictions_jacobian(self, theta: ndarray):
         Te, model_Te_jac = self.model.prediction_and_jacobian(self.instfunc.radius.flatten(), theta[self.te_slc])
         ne, model_ne_jac = self.model.prediction_and_jacobian(self.instfunc.radius.flatten(), theta[self.ne_slc])
         Te.resize(self.instfunc.radius.shape)
@@ -78,13 +77,11 @@ class SpectrometerModel:
         model_ne_jac.resize([*self.instfunc.radius.shape, self.model.n_parameters])
 
         dT, dn = self.spectrum_jacobian(Te, ne)
-        print(dT.shape, model_Te_jac.shape)
-        Jac_Te = zeros([self.n_positions, self.n_spectra, self.model.n_parameters])
-        Jac_ne = zeros([self.n_positions, self.n_spectra, self.model.n_parameters])
-        for i in range(self.n_positions):
-            for j in range(self.n_spectra):
-                Jac_Te[i, j, :] = model_Te_jac[i, :, :].T @ dT[i, j, :]
-                Jac_ne[i, j, :] = model_ne_jac[i, :, :].T @ dn[i, j, :]
-        Jac_Te.resize([self.n_positions * self.n_spectra, 5])
-        Jac_ne.resize([self.n_positions * self.n_spectra, 5])
-        return Jac_Te, Jac_ne
+
+        Jac_Te = einsum("iqk, ijq -> ijk", model_Te_jac, dT)
+        Jac_ne = einsum("iqk, ijq -> ijk", model_ne_jac, dn)
+
+        Jac_theta = zeros([self.n_positions * self.n_spectra, 2 * self.model.n_parameters])
+        Jac_theta[:, self.te_slc] = Jac_Te.reshape([self.n_positions * self.n_spectra, self.model.n_parameters])
+        Jac_theta[:, self.ne_slc] = Jac_ne.reshape([self.n_positions * self.n_spectra, self.model.n_parameters])
+        return Jac_theta
