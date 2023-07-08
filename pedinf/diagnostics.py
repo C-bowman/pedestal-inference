@@ -28,21 +28,22 @@ class SpectrometerModel:
 
         self.n_positions, self.n_spectra, _, _ = self.response.response.shape
         self.n_weights = self.instfunc.weights.shape[1]
-
+        self.spectrum_shape = (self.n_positions, self.n_spectra, self.n_weights)
         self.te_slc = slice(0, self.model.n_parameters)
         self.ne_slc = slice(self.model.n_parameters, 2 * self.model.n_parameters)
 
     def spectrum(self, Te: ndarray, ne: ndarray) -> ndarray:
         ln_te = log(Te)
-        y = zeros([self.n_positions, self.n_spectra])
+        y = zeros(self.spectrum_shape)
         coeffs = ne * self.instfunc.weights
-        for i in range(self.n_positions):
-            for j in range(self.n_spectra):
-                response = self.response.splines[i][j].ev(
+        for j in range(self.n_spectra):
+            splines = self.response.splines[j]
+            for i in range(self.n_positions):
+                y[i, j, :] = splines[i].ev(
                     ln_te[i, :], self.instfunc.scattering_angle[i, :]
                 )
-                y[i, j] = (response * coeffs[i, :]).sum()
-        return y
+        y *= coeffs[:, None, :]
+        return y.sum(axis=2)
 
     def predictions(self, theta: ndarray) -> ndarray:
         Te = self.model.prediction(self.instfunc.radius, theta[self.te_slc])

@@ -111,7 +111,7 @@ class SpectralResponse:
         # build the splines for all spatial / spectral channels
         n_positions, n_spectra, _, _ = self.response.shape
         self.splines = []
-        for i in range(n_positions):
+        for j in range(n_spectra):
             self.splines.append(
                 [
                     RectBivariateSpline(
@@ -119,7 +119,7 @@ class SpectralResponse:
                         y=self.scattering_angle[i, :],
                         z=self.response[i, j, :, :],
                     )
-                    for j in range(n_spectra)
+                    for i in range(n_positions)
                 ]
             )
 
