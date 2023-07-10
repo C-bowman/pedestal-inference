@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pedestal-inference"
-version = "0.2.2"
+version = "0.2.3"
 authors = [
   { name="Chris Bowman", email="chris.bowman.physics@gmail.com" },
 ]
@@ -20,9 +20,9 @@ classifiers = [
 dependencies = [
     "numpy >= 1.8",
     "scipy >= 1.6.3",
-    "inference-tools >= 0.11.0",
+    "inference-tools >= 0.12.0",
 ]
 
 [project.urls]
 homepage = "https://github.com/C-bowman/pedestal-inference"
-documentation = "https://inference-tools.readthedocs.io"
+documentation = "https://pedestal-inference.readthedocs.io/"
