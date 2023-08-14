@@ -1,4 +1,5 @@
-from numpy import linspace, mean, ndarray, std, sqrt, isfinite, zeros
+from numpy import mean, std, sqrt, isfinite
+from numpy import atleast_1d, linspace, zeros, ndarray
 from typing import Type
 from functools import partial
 from numpy.random import normal
@@ -10,54 +11,97 @@ from inference.likelihoods import GaussianLikelihood
 
 
 def locate_radius(
-        profile_value: float,
-        theta: ndarray,
+        profile_values: ndarray,
+        parameters: ndarray,
         model: Type[ProfileModel],
         search_limits=(1.2, 1.5),
-        tolerance=1e-4
+        tolerance=1e-4,
+        search_points: int = 25,
+        max_newton_updates: int = 8
 ):
-    if profile_value <= 0. or not isfinite(profile_value):
+    """
+    For a given edge profile, find the radius values at which the profile
+    is equal to a given set of target values.
+
+    :param profile_values: \
+        The target profile values for which the radius will be calculated.
+
+    :param parameters: \
+        The parameters of the profile model.
+
+    :param model: \
+        A ``ProfileModel`` from the ``pedinf.models`` module.
+
+    :param search_limits: \
+        A tuple of two floats specifying the lower and upper limits
+        of radius values when searching for the target profile values.
+
+    :param tolerance: \
+        The convergence threshold for the absolute fractional error in
+        the target profile value.
+
+    :param search_points: \
+        The number of points used in the initial grid-search which
+        generates initial guesses for Newton iteration.
+
+    :param search_points: \
+        The number of points used in the initial grid-search which
+        generates initial guesses for Newton iteration.
+
+    :param max_newton_updates: \
+        The maximum allowed number of Newton iterations used when
+        finding the radii of the target profile values.
+    """
+    targets = atleast_1d(profile_values)
+    if (targets <= 0.).any() or not isfinite(targets).all():
         raise ValueError(
             f"""\n
             [ locate_radius error ]
-            >> 'profile_value' argument must be finite and greater than zero.
-            >> The given value was {profile_value}
+            >> All values given in the 'profile_values' argument must be
+            >> finite and greater than zero.
             """
         )
-
-    R_search = linspace(*search_limits, 21)
-    profile = model.prediction(R_search, theta)
+    # evaluate the profile on the search grid
+    R_min, R_max = search_limits
+    R_search = linspace(R_min, R_max, search_points)
+    profile = model.prediction(R_search, parameters)
     cut = profile.argmax()
     R_search = R_search[cut:]
     profile = profile[cut:]
 
-    index = abs(profile_value - profile).argmin()
-    R = R_search[index]
+    # find the points closest to each target profile value
+    indices = abs(targets[:, None] - profile[None, :]).argmin(axis=1)
+    R = R_search[indices]
     initial_R = R.copy()
-    initial_val = profile[index]
-    initial_err = abs((profile_value - initial_val) / profile_value)
+    initial_val = profile[indices]
+    initial_err = abs((targets - initial_val) / targets)
 
-    if not isfinite(initial_val):
+    if not isfinite(initial_val).all():
         raise ValueError(
             f"""\n
             [ locate_radius error ]
-            >> The initial estimate of the radius value produced by the grid
-            >> search yields a non-finite profile value of {initial_val}
+            >> The initial estimate of the radius values produced by the grid
+            >> search contains non-finite profile values.
             """
         )
 
-    for i in range(8):
-        dy = (profile_value - model.prediction(R, theta))
-        R += dy / model.gradient(R, theta)
-        if abs(dy / profile_value) < tolerance:
+    for i in range(max_newton_updates):
+        dy = (targets - model.prediction(R, parameters))
+        R += dy / model.gradient(R, parameters)
+        R.clip(min=R_min, max=R_max, out=R)
+        error = abs(dy / targets)
+        if (error < tolerance).all():
             break
     else:
-        R = initial_R
+        # if any points didn't meet the tolerance, check if their error diverged
+        diverged = error > initial_err
+        if diverged.any():  # replace any which diverged with the grid-search result
+            R[diverged] = initial_R[diverged]
         warn(
             f"""\n
             [ locate_radius warning ]
-            >> Newton iteration failed to converge. Instead returning grid-search
-            >> estimate of {initial_R} with a fractional error of {initial_err}.
+            >> Newton iteration failed to converge for {(error > tolerance).sum()} out
+            >> of {targets.size} of the target profile values.
             """
         )
     return R

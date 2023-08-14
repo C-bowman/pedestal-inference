@@ -7,10 +7,10 @@ import pytest
 
 
 def test_locate_radius():
-    theta = array([1.4, 150, 0.02, 600, 5, 0.75])
-    for value in [30., 40., 50., 60.]:
-        R = locate_radius(profile_value=value, theta=theta, model=lpm)
-        assert abs(lpm.prediction(R, theta) / value - 1.).max() < 1e-8
+    theta = array([1.4, 150, 0.02, 600, 5, 0.5])
+    temperatures = array([10., 15., 20., 30., 40., 50., 60.])
+    R = locate_radius(profile_values=temperatures, parameters=theta, model=lpm)
+    assert abs(lpm.prediction(R, theta) / temperatures - 1.).max() < 1e-8
 
 
 @pytest.mark.parametrize("model", [mtanh, lpm])
