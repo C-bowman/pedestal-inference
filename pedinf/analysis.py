@@ -1,4 +1,4 @@
-from numpy import mean, std, sqrt, isfinite
+from numpy import mean, std, sqrt, isfinite, sort, expand_dims, take_along_axis
 from numpy import atleast_1d, linspace, zeros, ndarray
 from typing import Type
 from functools import partial
@@ -6,7 +6,6 @@ from numpy.random import normal
 from scipy.optimize import minimize
 from warnings import warn
 from pedinf.models import ProfileModel
-from inference.pdf import sample_hdi
 from inference.likelihoods import GaussianLikelihood
 
 
@@ -367,12 +366,12 @@ def pressure_profile_and_gradient(
         "radius": radius,
         "pe_profiles": pe_profs,
         "pe_mean": pe_profs.mean(axis=0),
-        "pe_hdi_65": sample_hdi(pe_profs, fraction=0.65),
-        "pe_hdi_95": sample_hdi(pe_profs, fraction=0.95),
+        "pe_hdi_65": vectorised_hdi(pe_profs, frac=0.65),
+        "pe_hdi_95": vectorised_hdi(pe_profs, frac=0.95),
         "pe_gradient_profiles": pe_grads,
         "pe_gradient_mean": pe_grads.mean(axis=0),
-        "pe_gradient_hdi_65": sample_hdi(pe_grads, fraction=0.65),
-        "pe_gradient_hdi_95": sample_hdi(pe_grads, fraction=0.95),
+        "pe_gradient_hdi_65": vectorised_hdi(pe_grads, frac=0.65),
+        "pe_gradient_hdi_95": vectorised_hdi(pe_grads, frac=0.95),
     }
 
 
@@ -469,3 +468,22 @@ def pressure_parameters(
         return result.x, diagnostics
     else:
         return result.x
+
+
+def vectorised_hdi(samples: ndarray, frac: float) -> ndarray:
+    s = sort(samples, axis=0)
+    n, m = samples.shape
+    L = int(frac * n)
+
+    # check that we have enough samples to estimate the HDI for the chosen fraction
+    hdi = zeros([m, 2])
+    if n > L:
+        # find the optimal single HDI
+        widths = s[L:, :] - s[: n - L, :]
+        i = expand_dims(widths.argmin(axis=0), axis=0)
+        hdi[:, 0] = take_along_axis(s, i, 0).squeeze()
+        hdi[:, 1] = take_along_axis(s, i + L, 0).squeeze()
+    else:
+        hdi[:, 0] = s[0, :]
+        hdi[:, 1] = s[-1, :]
+    return hdi
