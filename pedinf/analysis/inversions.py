@@ -4,12 +4,19 @@ from pedinf.analysis.utils import locate_radius, PlasmaProfile
 
 
 def profiles_by_temperature(
-        ne_profile_samples: ndarray,
-        te_profile_samples: ndarray,
+        temperatures: ndarray,
         model: ProfileModel,
-        temperatures: ndarray
+        ne_profile_samples: ndarray,
+        te_profile_samples: ndarray
 ):
     """
+    :param temperatures: \
+        Array of electron temperature values for which the major radius, electron
+        density and electron pressure is calculated.
+
+    :param model: \
+        A profile model from the ``pedinf.models`` module.
+
     :param ne_profile_samples: \
         A set of sampled parameters of a profile model from ``pedinf.models``
         representing possible electron density edge profiles. The samples should
@@ -21,10 +28,6 @@ def profiles_by_temperature(
         representing possible electron temperature edge profiles. The samples should
         be given as a ``numpy.ndarray`` of shape ``(n, m)`` where ``n`` is the number
         of samples and ``m`` is the number of model parameters.
-
-    :param model: \
-        A profile model from the ``pedinf.models`` module.
-
     """
     n_samp, n_params = te_profile_samples.shape
     radius_samples = zeros([temperatures.size, n_samp])
