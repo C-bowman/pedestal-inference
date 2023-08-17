@@ -1,16 +1,17 @@
-from numpy import array
+from numpy import array, linspace
 from numpy.random import default_rng
 from pedinf.models import lpm, mtanh, ProfileModel
 from typing import Type
-from pedinf.analysis import locate_radius, pressure_parameters
+from pedinf.analysis.utils import locate_radius
+from pedinf.analysis import pressure_parameters, pressure_profile_and_gradient
 import pytest
 
 
 def test_locate_radius():
-    theta = array([1.4, 150, 0.02, 600, 5, 0.75])
-    for value in [30., 40., 50., 60.]:
-        R = locate_radius(profile_value=value, theta=theta, model=lpm)
-        assert abs(lpm.prediction(R, theta) / value - 1.).max() < 1e-8
+    theta = array([1.4, 150, 0.02, 600, 5, 0.5])
+    temperatures = array([10., 15., 20., 30., 40., 50., 60.])
+    R = locate_radius(profile_values=temperatures, parameters=theta, model=lpm)
+    assert abs(lpm.prediction(R, theta) / temperatures - 1.).max() < 1e-8
 
 
 @pytest.mark.parametrize("model", [mtanh, lpm])
@@ -33,3 +34,25 @@ def test_pressure_parameters(model: Type[ProfileModel]):
             return_diagnostics=True
         )
         assert info["max_abs_err"] / info["target"].mean() < 0.2
+
+
+def test_pressure_profile_and_gradient():
+    n_samples = 250
+    rng = default_rng(2)
+    te_means = array([1.38, 150., 0.03, 400., 10.])
+    te_sigma = array([0.005, 10., 0.005, 50., 3.])
+    ne_means = array([1.375, 3e19, 0.02, 1e19, 2e18])
+    ne_sigma = array([0.005, 3e18, 0.003, 1e19, 3.])
+
+    te_samples = rng.normal(loc=te_means, scale=te_sigma, size=[n_samples, 5])
+    ne_samples = rng.normal(loc=ne_means, scale=ne_sigma, size=[n_samples, 5])
+    R = linspace(1.2, 1.5, 256)
+    results = pressure_profile_and_gradient(
+        radius=R,
+        te_profile_samples=te_samples,
+        ne_profile_samples=ne_samples,
+        model=mtanh
+    )
+
+    for k in ["pe_hdi_65", "pe_hdi_95", "pe_gradient_hdi_65", "pe_gradient_hdi_95"]:
+        assert (results[k][:, 0] < results[k][:, 1]).all()
