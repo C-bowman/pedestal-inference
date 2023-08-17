@@ -243,7 +243,7 @@ class lpm(ProfileModel):
         z = (R0 - R) / sigma
         iL = 1 + exp(-z - ln_k)
         G = (a * sigma) * log(1 + exp(z))
-        L = (h - b) * iL ** -k
+        L = (h - b) * iL**-k
         return G + L + b
 
     @staticmethod
@@ -298,7 +298,7 @@ class lpm(ProfileModel):
         df_dz = (k * (h - b)) * Lk * (1 - L) + (a * sigma) / (1 + exp_z)
         jac[:, 0] = df_dz / sigma
         jac[:, 1] = Lk
-        jac[:, 2] = -(z / w) * df_dz + (0.25*a) * S
+        jac[:, 2] = -(z / w) * df_dz + (0.25 * a) * S
         jac[:, 3] = sigma * S
         jac[:, 4] = 1 - Lk
         jac[:, 5] = (h - b) * Lk * (1 + ln_L - L)
@@ -335,7 +335,7 @@ class lpm(ProfileModel):
         df_dz = (k * (h - b)) * Lk * (1 - L) + (a * sigma) / (1 + exp_z)
         jac[:, 0] = df_dz / sigma
         jac[:, 1] = Lk
-        jac[:, 2] = -(z / w) * df_dz + (0.25*a) * S
+        jac[:, 2] = -(z / w) * df_dz + (0.25 * a) * S
         jac[:, 3] = sigma * S
         jac[:, 4] = 1 - Lk
         jac[:, 5] = (h - b) * Lk * (1 + ln_L - L)

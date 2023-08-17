@@ -4,12 +4,15 @@ from pedinf.analysis.utils import locate_radius, PlasmaProfile
 
 
 def profiles_by_temperature(
-        temperatures: ndarray,
-        model: ProfileModel,
-        ne_profile_samples: ndarray,
-        te_profile_samples: ndarray
+    temperatures: ndarray,
+    model: ProfileModel,
+    ne_profile_samples: ndarray,
+    te_profile_samples: ndarray,
 ):
     """
+    Calculates the major radius, electron density and electron pressure as a
+    function of electron temperature for a given set of profile model samples.
+    
     :param temperatures: \
         Array of electron temperature values for which the major radius, electron
         density and electron pressure is calculated.
@@ -38,10 +41,12 @@ def profiles_by_temperature(
             model=model,
             parameters=te_profile_samples[i, :],
             search_points=50,
-            show_warnings=False
+            show_warnings=False,
         )
 
-        density_samples[:, i] = model.prediction(radius_samples[:, i], ne_profile_samples[i, :])
+        density_samples[:, i] = model.prediction(
+            radius_samples[:, i], ne_profile_samples[i, :]
+        )
 
     pressure_samples = density_samples * temperatures[:, None]
 
@@ -51,7 +56,7 @@ def profiles_by_temperature(
         axis_label="electron temperature",
         axis_units="eV",
         profile_label="electron pressure",
-        profile_units="eV / m^3"
+        profile_units="eV / m^3",
     )
 
     density = PlasmaProfile(
@@ -60,7 +65,7 @@ def profiles_by_temperature(
         axis_label="electron temperature",
         axis_units="eV",
         profile_label="electron density",
-        profile_units="m^-3"
+        profile_units="m^-3",
     )
 
     radius = PlasmaProfile(
@@ -69,7 +74,7 @@ def profiles_by_temperature(
         axis_label="electron temperature",
         axis_units="eV",
         profile_label="major radius",
-        profile_units="m"
+        profile_units="m",
     )
 
     return radius, density, pressure

@@ -9,10 +9,10 @@ from pedinf.analysis.utils import vectorised_hdi
 
 
 def pressure_profile_and_gradient(
-        radius: ndarray,
-        ne_profile_samples: ndarray,
-        te_profile_samples: ndarray,
-        model: Type[ProfileModel]
+    radius: ndarray,
+    ne_profile_samples: ndarray,
+    te_profile_samples: ndarray,
+    model: Type[ProfileModel],
 ):
     """
     Calculates the electron pressure and pressure gradient profiles at specified major
@@ -84,10 +84,10 @@ def pressure_profile_and_gradient(
 
 
 def pressure_parameters(
-        ne_parameters: ndarray,
-        te_parameters: ndarray,
-        model: Type[ProfileModel],
-        return_diagnostics=False
+    ne_parameters: ndarray,
+    te_parameters: ndarray,
+    model: Type[ProfileModel],
+    return_diagnostics=False,
 ):
     """
     Approximates the electron pressure profile parameters by re-fitting the profile
@@ -118,12 +118,14 @@ def pressure_parameters(
 
     # use te / ne parameters to determine the range over which to fit the pressure
     n_points = 128
-    R_min = min(ne_R0, te_R0) - 2*(ne_w + te_w)
-    R_max = max(ne_R0, te_R0) + 2*(ne_w + te_w)
+    R_min = min(ne_R0, te_R0) - 2 * (ne_w + te_w)
+    R_max = max(ne_R0, te_R0) + 2 * (ne_w + te_w)
     R = linspace(R_min, R_max, n_points)
 
     ec = 1.60217663e-19  # electron charge used to convert from eV / m^3 to J / m^3
-    pe_prediction = (model.prediction(R, ne_parameters) * model.prediction(R, te_parameters)) * ec
+    pe_prediction = (
+        model.prediction(R, ne_parameters) * model.prediction(R, te_parameters)
+    ) * ec
     forward_model = partial(model.prediction, R)
     forward_model_jacobian = partial(model.jacobian, R)
 
@@ -133,7 +135,9 @@ def pressure_parameters(
     j = model.parameters["pedestal_top_gradient"]
     k = model.parameters["background_level"]
     initial_guess[i] = ne_parameters[i] * te_parameters[i] * ec
-    initial_guess[j] = (ne_parameters[i] * te_parameters[j] + ne_parameters[j] * te_parameters[i]) * ec
+    initial_guess[j] = (
+        ne_parameters[i] * te_parameters[j] + ne_parameters[j] * te_parameters[i]
+    ) * ec
     initial_guess[k] = ne_parameters[k] * te_parameters[k] * ec
     # set location guess to be position of maximum gradient in the pressure prediction
     initial_guess[R0_index] = R[1:-1][(pe_prediction[2:] - pe_prediction[:-2]).argmin()]
@@ -141,17 +145,17 @@ def pressure_parameters(
     # set up a gaussian likelihood function we can maximise to estimate the pressure
     L = GaussianLikelihood(
         y_data=pe_prediction,
-        sigma=zeros(n_points) + initial_guess[i]*0.01,
+        sigma=zeros(n_points) + initial_guess[i] * 0.01,
         forward_model=forward_model,
-        forward_model_jacobian=forward_model_jacobian
+        forward_model_jacobian=forward_model_jacobian,
     )
 
     bounds = {
-        "pedestal_location": (0., None),
-        "pedestal_height": (0., None),
+        "pedestal_location": (0.0, None),
+        "pedestal_height": (0.0, None),
         "pedestal_width": (1e-3, None),
         "pedestal_top_gradient": (None, None),
-        "background_level": (0., None),
+        "background_level": (0.0, None),
         "logistic_shape_parameter": (0.05, None),
     }
 
@@ -160,7 +164,7 @@ def pressure_parameters(
         x0=initial_guess,
         method="Nelder-Mead",
         bounds=[bounds[p] for p in model.parameters],
-        options={"maxiter": 3000}
+        options={"maxiter": 3000},
     )
 
     if return_diagnostics:
@@ -171,7 +175,7 @@ def pressure_parameters(
             "rmse": sqrt((residual**2).mean()),
             "target": pe_prediction,
             "fit": fit,
-            "radius": R
+            "radius": R,
         }
         return result.x, diagnostics
     else:

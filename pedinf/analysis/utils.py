@@ -7,14 +7,14 @@ from pedinf.models import ProfileModel
 
 
 def locate_radius(
-        profile_values: ndarray,
-        parameters: ndarray,
-        model: Type[ProfileModel],
-        search_limits=(1.2, 1.5),
-        tolerance=1e-4,
-        search_points: int = 25,
-        max_newton_updates: int = 8,
-        show_warnings: bool = True
+    profile_values: ndarray,
+    parameters: ndarray,
+    model: Type[ProfileModel],
+    search_limits=(1.2, 1.5),
+    tolerance=1e-4,
+    search_points: int = 25,
+    max_newton_updates: int = 8,
+    show_warnings: bool = True,
 ):
     """
     For a given edge profile, find the radius values at which the profile
@@ -54,7 +54,7 @@ def locate_radius(
         convergence.
     """
     targets = atleast_1d(profile_values)
-    if (targets <= 0.).any() or not isfinite(targets).all():
+    if (targets <= 0.0).any() or not isfinite(targets).all():
         raise ValueError(
             f"""\n
             [ locate_radius error ]
@@ -87,7 +87,7 @@ def locate_radius(
         )
 
     for i in range(max_newton_updates):
-        dy = (targets - model.prediction(R, parameters))
+        dy = targets - model.prediction(R, parameters)
         R += dy / model.gradient(R, parameters)
         R.clip(min=R_min, max=R_max, out=R)
         error = abs(dy / targets)
@@ -136,7 +136,7 @@ class PlasmaProfile:
         axis_label: str = None,
         profile_label: str = None,
         axis_units: str = None,
-        profile_units: str = None
+        profile_units: str = None,
     ):
         self.axis = axis
         self.profile_samples = profile_samples
@@ -167,9 +167,25 @@ class PlasmaProfile:
 
         col = "blue" if color is None else color
 
-        ax.fill_between(self.axis, self.hdi_95[:, 0],  self.hdi_65[:, 0], color=col, alpha=0.1)
-        ax.fill_between(self.axis, self.hdi_65[:, 1],  self.hdi_95[:, 1], color=col, alpha=0.1, label="65% HDI")
-        ax.fill_between(self.axis, self.hdi_65[:, 0],  self.hdi_65[:, 1], color=col, alpha=0.25, label="95% HDI")
+        ax.fill_between(
+            self.axis, self.hdi_95[:, 0], self.hdi_65[:, 0], color=col, alpha=0.1
+        )
+        ax.fill_between(
+            self.axis,
+            self.hdi_65[:, 1],
+            self.hdi_95[:, 1],
+            color=col,
+            alpha=0.1,
+            label="65% HDI",
+        )
+        ax.fill_between(
+            self.axis,
+            self.hdi_65[:, 0],
+            self.hdi_65[:, 1],
+            color=col,
+            alpha=0.25,
+            label="95% HDI",
+        )
         ax.plot(self.axis, self.mean, color=col, ls="dashed", lw=2, label="mean")
         ax.set_ylabel(self._ylabel)
         ax.set_xlabel(self._xlabel)

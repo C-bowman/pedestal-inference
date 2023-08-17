@@ -7,12 +7,12 @@ from pedinf.analysis.utils import locate_radius
 
 
 def separatrix_given_temperature(
-        ne_profile_samples: ndarray,
-        te_profile_samples: ndarray,
-        model: Type[ProfileModel],
-        te_sep: float = None,
-        te_sep_error: float = None,
-        te_sep_samples: ndarray = None
+    ne_profile_samples: ndarray,
+    te_profile_samples: ndarray,
+    model: Type[ProfileModel],
+    te_sep: float = None,
+    te_sep_error: float = None,
+    te_sep_samples: ndarray = None,
 ):
     """
     Given an estimated separatrix electron temperature (and optionally an associated
@@ -97,7 +97,9 @@ def separatrix_given_temperature(
 
     if te_sep_samples is None:
         te_sep_samples = normal(loc=te_sep, scale=te_sep_error, size=int(n_prof * 1.2))
-        te_sep_samples = te_sep_samples[abs(te_sep_samples - te_sep) < 2.5 * te_sep_error]
+        te_sep_samples = te_sep_samples[
+            abs(te_sep_samples - te_sep) < 2.5 * te_sep_error
+        ]
     assert te_sep_samples.size >= n_prof
 
     for i in range(n_prof):
@@ -107,12 +109,12 @@ def separatrix_given_temperature(
         R_sep_samples[i] = R
 
     return {
-        'ne_mean': mean(ne_sep_samples),
-        'ne_std': std(ne_sep_samples),
-        'pe_mean': mean(pe_sep_samples),
-        'pe_std': std(pe_sep_samples),
-        'R_mean': mean(R_sep_samples),
-        'R_std': std(R_sep_samples)
+        "ne_mean": mean(ne_sep_samples),
+        "ne_std": std(ne_sep_samples),
+        "pe_mean": mean(pe_sep_samples),
+        "pe_std": std(pe_sep_samples),
+        "R_mean": mean(R_sep_samples),
+        "R_std": std(R_sep_samples),
     }
 
 
@@ -121,11 +123,11 @@ def linear_find_zero(x1, x2, y1, y2):
 
 
 def separatrix_given_scaling(
-        ne_profile_samples: ndarray,
-        te_profile_samples: ndarray,
-        model: Type[ProfileModel],
-        separatrix_scaling: callable,
-        radius_limits=(1.2, 1.6)
+    ne_profile_samples: ndarray,
+    te_profile_samples: ndarray,
+    model: Type[ProfileModel],
+    separatrix_scaling: callable,
+    radius_limits=(1.2, 1.6),
 ):
     """
     Given a scaling function which specifies the separatrix temperature as
@@ -175,7 +177,7 @@ def separatrix_given_scaling(
         te_sep_prediction = separatrix_scaling(ne_prof)
         dt = te_prof - te_sep_prediction
         m = abs(dt).argmin()
-        i, j = (m - 1, m) if dt[m] * dt[m - 1] < 0. else (m, m + 1)
+        i, j = (m - 1, m) if dt[m] * dt[m - 1] < 0.0 else (m, m + 1)
         R_sep = linear_find_zero(radius_axis[i], radius_axis[j], dt[i], dt[j])
 
         # use separatrix position to get the temperature / density
@@ -189,12 +191,12 @@ def separatrix_given_scaling(
         R_sep_samples.append(R_sep)
 
     return {
-        'ne_mean': mean(ne_sep_samples),
-        'ne_std': std(ne_sep_samples),
-        'te_mean': mean(te_sep_samples),
-        'te_std': std(te_sep_samples),
-        'pe_mean': mean(pe_sep_samples),
-        'pe_std': std(pe_sep_samples),
-        'R_mean': mean(R_sep_samples),
-        'R_std': std(R_sep_samples)
+        "ne_mean": mean(ne_sep_samples),
+        "ne_std": std(ne_sep_samples),
+        "te_mean": mean(te_sep_samples),
+        "te_std": std(te_sep_samples),
+        "pe_mean": mean(pe_sep_samples),
+        "pe_std": std(pe_sep_samples),
+        "R_mean": mean(R_sep_samples),
+        "R_std": std(R_sep_samples),
     }
