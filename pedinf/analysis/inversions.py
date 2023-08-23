@@ -1,7 +1,7 @@
 from numpy import zeros, ndarray
 from pedinf.models import ProfileModel
 from pedinf.analysis.utils import locate_radius, PlasmaProfile
-from collections.abc import Sequence
+from typing import Sequence
 
 
 def profiles_by_temperature(
