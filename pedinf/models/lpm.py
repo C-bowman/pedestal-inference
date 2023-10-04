@@ -46,13 +46,15 @@ class lpm(ProfileModel):
         "logistic_shape_parameter": 5,
     }
 
-    @staticmethod
-    def prediction(R: ndarray, theta: ndarray) -> ndarray:
+    def __init__(self, radius=None, low_field_side=True):
+        self.drn = -1 if low_field_side else 1
+
+    def prediction(self, radius: ndarray, theta: ndarray) -> ndarray:
         """
         Calculates the prediction of the ``lpm`` model.
         See the documentation for ``lpm`` for details of the model itself.
 
-        :param R: \
+        :param radius: \
             Radius values at which the gradient is evaluated.
 
         :param theta: \
@@ -64,19 +66,18 @@ class lpm(ProfileModel):
         R0, h, w, a, b, k = theta
         sigma = 0.25 * w
         ln_k = log(k)
-        z = (R0 - R) / sigma
+        z = (radius - R0) * (self.drn / sigma)
         iL = 1 + exp(-z - ln_k)
         G = (a * sigma) * log(1 + exp(z))
         L = (h - b) * iL**-k
         return G + L + b
 
-    @staticmethod
-    def gradient(R: ndarray, theta: ndarray) -> ndarray:
+    def gradient(self, radius: ndarray, theta: ndarray) -> ndarray:
         """
         Calculates the gradient (w.r.t. major radius) of the ``lpm`` model.
         See the documentation for ``lpm`` for details of the model itself.
 
-        :param R: \
+        :param radius: \
             Radius values at which the gradient is evaluated.
 
         :param theta: \
@@ -87,20 +88,19 @@ class lpm(ProfileModel):
         """
         R0, h, w, a, b, k = theta
         sigma = 0.25 * w
-        z = (R0 - R) / sigma
+        z = (radius - R0) * (self.drn / sigma)
         exp_z = exp(-z)
         L = k / (k + exp_z)
-        return -((h - b) * k / sigma) * (1 - L) * L**k - a / (1 + exp_z)
+        return (((h - b) * k / sigma) * (1 - L) * L**k + a / (1 + exp_z)) * self.drn
 
-    @staticmethod
-    def jacobian(R: ndarray, theta: ndarray) -> ndarray:
+    def jacobian(self, radius: ndarray, theta: ndarray) -> ndarray:
         """
         Calculates the jacobian of the ``lpm`` model. The jacobian is a matrix where
         element :math:`i, j` is the derivative of the model prediction at the
         :math:`i`'th radial position with respect to the :math:`j`'th model parameter.
         See the documentation for ``lpm`` for details of the model itself.
 
-        :param R: \
+        :param radius: \
             Radius values at which the gradient is evaluated.
 
         :param theta: \
@@ -111,16 +111,16 @@ class lpm(ProfileModel):
         """
         R0, h, w, a, b, k = theta
         sigma = 0.25 * w
-        z = (R0 - R) / sigma
+        z = (radius - R0) * (self.drn / sigma)
         exp_z = exp(-z)
         L = k / (k + exp_z)
         ln_L = log(L)
         S = log(1 + exp_z) + z
         Lk = L**k
 
-        jac = zeros([R.size, 6])
+        jac = zeros([radius.size, 6])
         df_dz = (k * (h - b)) * Lk * (1 - L) + (a * sigma) / (1 + exp_z)
-        jac[:, 0] = df_dz / sigma
+        jac[:, 0] = -df_dz * (self.drn / sigma)
         jac[:, 1] = Lk
         jac[:, 2] = -(z / w) * df_dz + (0.25 * a) * S
         jac[:, 3] = sigma * S
@@ -128,15 +128,14 @@ class lpm(ProfileModel):
         jac[:, 5] = (h - b) * Lk * (1 + ln_L - L)
         return jac
 
-    @staticmethod
-    def prediction_and_jacobian(R: ndarray, theta: ndarray) -> Tuple[ndarray, ndarray]:
+    def prediction_and_jacobian(self, radius: ndarray, theta: ndarray) -> Tuple[ndarray, ndarray]:
         """
         Calculates the prediction and the jacobian of the ``lpm`` model. The jacobian
         is a matrix where element :math:`i, j` is the derivative of the model prediction
         at the :math:`i`'th radial position with respect to the :math:`j`'th model parameter.
         See the documentation for ``lpm`` for details of the model itself.
 
-        :param R: \
+        :param radius: \
             Radius values at which the gradient is evaluated.
 
         :param theta: \
@@ -147,7 +146,7 @@ class lpm(ProfileModel):
         """
         R0, h, w, a, b, k = theta
         sigma = 0.25 * w
-        z = (R0 - R) / sigma
+        z = (radius - R0) * (self.drn / sigma)
         exp_z = exp(-z)
         L = k / (k + exp_z)
         ln_L = log(L)
@@ -155,9 +154,9 @@ class lpm(ProfileModel):
         Lk = L**k
 
         prediction = Lk * (h - b) + (a * sigma) * S + b
-        jac = zeros([R.size, 6])
+        jac = zeros([radius.size, 6])
         df_dz = (k * (h - b)) * Lk * (1 - L) + (a * sigma) / (1 + exp_z)
-        jac[:, 0] = df_dz / sigma
+        jac[:, 0] = -df_dz * (self.drn / sigma)
         jac[:, 1] = Lk
         jac[:, 2] = -(z / w) * df_dz + (0.25 * a) * S
         jac[:, 3] = sigma * S
