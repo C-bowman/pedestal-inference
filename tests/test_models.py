@@ -1,10 +1,18 @@
 from numpy import linspace, empty_like, zeros, allclose
 from numpy.random import default_rng
-from pedinf.models import ProfileModel, mtanh, lpm
+from pedinf.models import ProfileModel, mtanh, lpm, logispline
 import pytest
 
 
-test_models = [lpm, mtanh]
+test_models = [
+    mtanh(low_field_side=True),
+    mtanh(low_field_side=False),
+    lpm(low_field_side=True),
+    lpm(low_field_side=False),
+    logispline(knots=linspace(1.25, 1.5, 6), low_field_side=True),
+    logispline(knots=linspace(1.25, 1.5, 6), low_field_side=False)
+]
+
 parameter_test_ranges = {
     "pedestal_location": (1.3, 1.45),
     "pedestal_height": (50., 300.),
@@ -12,6 +20,7 @@ parameter_test_ranges = {
     "pedestal_top_gradient": (-100., 1000.),
     "background_level": (0.5, 15.),
     "logistic_shape_parameter": (0.1, 3),
+    "basis_weights": (5., 100),
 }
 
 rng = default_rng(123)
@@ -25,8 +34,9 @@ def test_param_ranges():
 def build_test_data(model: ProfileModel, n_points=10):
     R = linspace(1.2, 1.5, 256)
     theta = zeros([n_points, model.n_parameters])
-    for i, p in enumerate(model.parameters):
-        theta[:, i] = rng.uniform(*parameter_test_ranges[p], size=n_points)
+    for p, i in model.parameters.items():
+        m = i.stop - i.start if isinstance(i, slice) else 1
+        theta[:, i] = rng.uniform(*parameter_test_ranges[p], size=(n_points, m)).squeeze()
     return R, theta
 
 

@@ -43,13 +43,15 @@ class mtanh(ProfileModel):
         "background_level": 4,
     }
 
-    @staticmethod
-    def prediction(R: ndarray, theta: ndarray) -> ndarray:
+    def __init__(self, radius=None, low_field_side=True):
+        self.drn = -1 if low_field_side else 1
+
+    def prediction(self, radius: ndarray, theta: ndarray) -> ndarray:
         """
         Calculates the prediction of the ``mtanh`` model.
         See the documentation for ``mtanh`` for details of the model itself.
 
-        :param R: \
+        :param radius: \
             Radius values at which the gradient is evaluated.
 
         :param theta: \
@@ -60,18 +62,17 @@ class mtanh(ProfileModel):
         """
         R0, h, w, a, b = theta
         sigma = 0.25 * w
-        z = (R0 - R) / sigma
+        z = (radius - R0) * (self.drn / sigma)
         G = h - b + (a * sigma) * z
         iL = 1 + exp(-z)
         return (G / iL) + b
 
-    @staticmethod
-    def gradient(R: ndarray, theta: ndarray) -> ndarray:
+    def gradient(self, radius: ndarray, theta: ndarray) -> ndarray:
         """
         Calculates the gradient (w.r.t. major radius) of the ``mtanh`` function.
         See the documentation for ``mtanh`` for details of the function itself.
 
-        :param R: \
+        :param radius: \
             Radius values at which the gradient is evaluated.
 
         :param theta: \
@@ -82,20 +83,19 @@ class mtanh(ProfileModel):
         """
         R0, h, w, a, b = theta
         sigma = 0.25 * w
-        z = (R0 - R) / sigma
+        z = (radius - R0) * (self.drn / sigma)
         L = 1 / (1 + exp(-z))
         c = (h - b) / sigma
-        return -L * ((1 - L) * (c + a * z) + a)
+        return self.drn * L * ((1 - L) * (c + a * z) + a)
 
-    @staticmethod
-    def jacobian(R: ndarray, theta: ndarray) -> ndarray:
+    def jacobian(self, radius: ndarray, theta: ndarray) -> ndarray:
         """
         Calculates the jacobian of the ``mtanh`` model. The jacobian is a matrix where
         element :math:`i, j` is the derivative of the model prediction at the
         :math:`i`'th radial position with respect to the :math:`j`'th model parameter.
         See the documentation for ``mtanh`` for details of the model itself.
 
-        :param R: \
+        :param radius: \
             Radius values at which the gradient is evaluated.
 
         :param theta: \
@@ -106,28 +106,27 @@ class mtanh(ProfileModel):
         """
         R0, h, w, a, b = theta
         sigma = 0.25 * w
-        z = (R0 - R) / sigma
+        z = (radius - R0) * (self.drn / sigma)
         L = 1 / (1 + exp(-z))
 
-        jac = zeros([R.size, 5])
+        jac = zeros([radius.size, 5])
         c = (h - b) / sigma
         q = L * (1 - L) * (c + a * z)
-        jac[:, 0] = q + L * a
+        jac[:, 0] = -self.drn * (q + L * a)
         jac[:, 1] = L
         jac[:, 2] = -0.25 * q * z
         jac[:, 3] = (sigma * z) * L
         jac[:, 4] = 1 - L
         return jac
 
-    @staticmethod
-    def prediction_and_jacobian(R: ndarray, theta: ndarray) -> Tuple[ndarray, ndarray]:
+    def prediction_and_jacobian(self, radius: ndarray, theta: ndarray) -> Tuple[ndarray, ndarray]:
         """
         Calculates the prediction and the jacobian of the ``mtanh`` model. The jacobian
         is a matrix where element :math:`i, j` is the derivative of the model prediction
         at the :math:`i`'th radial position with respect to the :math:`j`'th model parameter.
         See the documentation for ``mtanh`` for details of the model itself.
 
-        :param R: \
+        :param radius: \
             Radius values at which the gradient is evaluated.
 
         :param theta: \
@@ -138,14 +137,14 @@ class mtanh(ProfileModel):
         """
         R0, h, w, a, b = theta
         sigma = 0.25 * w
-        z = (R0 - R) / sigma
+        z = (radius - R0) * (self.drn / sigma)
         L = 1 / (1 + exp(-z))
         G = (h - b) + (a * sigma) * z
         prediction = L * G + b
 
-        jac = zeros([R.size, 5])
+        jac = zeros([radius.size, 5])
         q = L * (1 - L) * G / sigma
-        jac[:, 0] = q + L * a
+        jac[:, 0] = -self.drn * (q + L * a)
         jac[:, 1] = L
         jac[:, 2] = -0.25 * q * z
         jac[:, 3] = (sigma * z) * L
