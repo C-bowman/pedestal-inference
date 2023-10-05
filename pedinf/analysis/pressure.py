@@ -1,6 +1,5 @@
 from numpy import sqrt
 from numpy import linspace, zeros, ndarray
-from typing import Type
 from functools import partial
 from scipy.optimize import minimize
 from pedinf.models import ProfileModel
@@ -12,7 +11,7 @@ def pressure_profile_and_gradient(
     radius: ndarray,
     ne_profile_samples: ndarray,
     te_profile_samples: ndarray,
-    model: Type[ProfileModel],
+    model: ProfileModel,
 ):
     """
     Calculates the electron pressure and pressure gradient profiles at specified major
@@ -86,7 +85,7 @@ def pressure_profile_and_gradient(
 def pressure_parameters(
     ne_parameters: ndarray,
     te_parameters: ndarray,
-    model: Type[ProfileModel],
+    model: ProfileModel,
     return_diagnostics=False,
 ):
     """

@@ -1,7 +1,6 @@
 from numpy import isfinite, sort, expand_dims, take_along_axis
 from numpy import atleast_1d, linspace, zeros, ndarray
 import matplotlib.pyplot as plt
-from typing import Type
 from warnings import warn
 from pedinf.models import ProfileModel
 
@@ -9,7 +8,7 @@ from pedinf.models import ProfileModel
 def locate_radius(
     profile_values: ndarray,
     parameters: ndarray,
-    model: Type[ProfileModel],
+    model: ProfileModel,
     search_limits=(1.2, 1.5),
     tolerance=1e-4,
     search_points: int = 25,
