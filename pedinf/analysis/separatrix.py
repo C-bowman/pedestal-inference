@@ -1,6 +1,5 @@
 from numpy import mean, std, isfinite
 from numpy import linspace, zeros, ndarray
-from typing import Type
 from numpy.random import normal
 from pedinf.models import ProfileModel
 from pedinf.analysis.utils import locate_radius
@@ -9,7 +8,7 @@ from pedinf.analysis.utils import locate_radius
 def separatrix_given_temperature(
     ne_profile_samples: ndarray,
     te_profile_samples: ndarray,
-    model: Type[ProfileModel],
+    model: ProfileModel,
     te_sep: float = None,
     te_sep_error: float = None,
     te_sep_samples: ndarray = None,
@@ -125,7 +124,7 @@ def linear_find_zero(x1, x2, y1, y2):
 def separatrix_given_scaling(
     ne_profile_samples: ndarray,
     te_profile_samples: ndarray,
-    model: Type[ProfileModel],
+    model: ProfileModel,
     separatrix_scaling: callable,
     radius_limits=(1.2, 1.6),
 ):
