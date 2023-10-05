@@ -1,4 +1,5 @@
 from typing import Tuple
+from functools import partial
 from numpy import ndarray, exp, zeros
 from pedinf.models.base import ProfileModel
 
@@ -45,6 +46,12 @@ class mtanh(ProfileModel):
 
     def __init__(self, radius=None, low_field_side=True):
         self.drn = -1 if low_field_side else 1
+        if radius is not None:
+            self.radius = radius
+            self.forward_prediction = partial(self.prediction, self.radius)
+            self.forward_gradient = partial(self.gradient, self.radius)
+            self.forward_jacobian = partial(self.jacobian, self.radius)
+            self.forward_prediction_and_jacobian = partial(self.prediction_and_jacobian, self.radius)
 
     def prediction(self, radius: ndarray, theta: ndarray) -> ndarray:
         """
