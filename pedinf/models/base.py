@@ -29,3 +29,7 @@ class ProfileModel(ABC):
     @abstractmethod
     def prediction_and_jacobian(self, radius: ndarray, theta: ndarray) -> Tuple[ndarray, ndarray]:
         pass
+
+    @abstractmethod
+    def update_radius(self, radius: ndarray):
+        pass

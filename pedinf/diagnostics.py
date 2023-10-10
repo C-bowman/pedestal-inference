@@ -25,6 +25,7 @@ class SpectrometerModel:
         self.response = spectral_response
         self.instfunc = instrument_function
         self.model = profile_model
+        self.model.update_radius(self.instfunc.radius.flatten())
 
         self.n_positions, self.n_spectra, _, _ = self.response.response.shape
         self.n_predictions = self.n_positions * self.n_spectra
@@ -65,17 +66,15 @@ class SpectrometerModel:
         return dS_dT, dS_dn
 
     def predictions(self, theta: ndarray) -> ndarray:
-        Te = self.model.prediction(self.instfunc.radius, theta[self.te_slc])
-        ne = self.model.prediction(self.instfunc.radius, theta[self.ne_slc])
+        Te = self.model.forward_prediction(theta[self.te_slc])
+        ne = self.model.forward_prediction(theta[self.ne_slc])
+        Te.resize(self.instfunc.radius.shape)
+        ne.resize(self.instfunc.radius.shape)
         return self.spectrum(Te, ne).flatten()
 
     def predictions_jacobian(self, theta: ndarray) -> ndarray:
-        Te, model_jac_Te = self.model.prediction_and_jacobian(
-            self.instfunc.radius.flatten(), theta[self.te_slc]
-        )
-        ne, model_jac_ne = self.model.prediction_and_jacobian(
-            self.instfunc.radius.flatten(), theta[self.ne_slc]
-        )
+        Te, model_jac_Te = self.model.forward_prediction_and_jacobian(theta[self.te_slc])
+        ne, model_jac_ne = self.model.forward_prediction_and_jacobian(theta[self.ne_slc])
         Te.resize(self.instfunc.radius.shape)
         ne.resize(self.instfunc.radius.shape)
         model_jac_Te.resize([*self.instfunc.radius.shape, self.model.n_parameters])
