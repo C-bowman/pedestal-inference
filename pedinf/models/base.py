@@ -8,6 +8,12 @@ class ProfileModel(ABC):
     parameters: dict
     n_parameters: int
 
+    radius: ndarray
+    forward_prediction: callable
+    forward_gradient: callable
+    forward_jacobian: callable
+    forward_prediction_and_jacobian: callable
+
     @abstractmethod
     def prediction(self, radius: ndarray, theta: ndarray) -> ndarray:
         pass
