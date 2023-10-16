@@ -1,6 +1,6 @@
 from numpy import linspace, empty_like, zeros, allclose
 from numpy.random import default_rng
-from pedinf.models import ProfileModel, mtanh, lpm, logispline
+from pedinf.models import ProfileModel, mtanh, lpm, logispline, exspline
 import pytest
 
 
@@ -10,7 +10,9 @@ test_models = [
     lpm(low_field_side=True),
     lpm(low_field_side=False),
     logispline(knots=linspace(1.25, 1.5, 6), low_field_side=True),
-    logispline(knots=linspace(1.25, 1.5, 6), low_field_side=False)
+    logispline(knots=linspace(1.25, 1.5, 6), low_field_side=False),
+    exspline(knots=linspace(1.25, 1.5, 6), low_field_side=True),
+    exspline(knots=linspace(1.25, 1.5, 6), low_field_side=False)
 ]
 
 parameter_test_ranges = {
@@ -20,7 +22,10 @@ parameter_test_ranges = {
     "pedestal_top_gradient": (-100., 1000.),
     "background_level": (0.5, 15.),
     "logistic_shape_parameter": (0.1, 3),
-    "basis_weights": (5., 100),
+    "logistic_location": (1.3, 1.45),
+    "logistic_floor": (50., 300.),
+    "logistic_width": (0.005, 0.02),
+    "basis_weights": (5., 10.),
 }
 
 rng = default_rng(123)
