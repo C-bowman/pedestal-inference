@@ -87,10 +87,7 @@ class exspline(ProfileModel):
 
     def _gradient(self, radius: ndarray, basis: ndarray, basis_derivs: ndarray, theta: ndarray):
         s = exp(basis @ theta[3:])
-        ds_dr = basis_derivs @ theta[3:]
         z = (4 * self.drn) * (radius - theta[0]) / theta[2]
         L = 1 / (1 + exp(-z))
         q = L * (1 - theta[1])
-        g = q + theta[1]
-        y = g * s
-        return y * (basis_derivs @ theta[3:]) + s * q * (1 - L) * (4 * self.drn / theta[2])
+        return s * ((q + theta[1]) * (basis_derivs @ theta[3:]) + q * (1 - L) * (4 * self.drn / theta[2]))
