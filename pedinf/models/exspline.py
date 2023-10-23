@@ -21,13 +21,13 @@ class exspline(ProfileModel):
         }
 
         if radius is not None:
-            self.update_radius(self, radius)
+            self.update_radius(radius)
 
     def update_radius(self, radius: ndarray):
         self.radius = radius
         self.basis, self.derivs = b_spline_basis(self.radius, self.knots, derivatives=True)
         self.forward_prediction = partial(self._prediction, self.radius, self.basis)
-        self.forward_gradient = partial(self._gradient, self.radius, self.derivs)
+        self.forward_gradient = partial(self._gradient, self.radius, self.basis, self.derivs)
         self.forward_jacobian = partial(self._jacobian, self.radius, self.basis)
         self.forward_prediction_and_jacobian = partial(self._prediction_and_jacobian, self.radius, self.basis)
 
