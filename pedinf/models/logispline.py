@@ -21,7 +21,7 @@ class logispline(ProfileModel):
         }
 
         if radius is not None:
-            self.update_radius(self, radius)
+            self.update_radius(radius)
 
     def update_radius(self, radius: ndarray):
         self.radius = radius
