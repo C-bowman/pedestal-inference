@@ -188,7 +188,7 @@ class SpectrumData:
         self.n_spectra = self.spectra.shape[1]
 
 
-class SpectralPedestalPosterior:
+class ThomsonProfilePosterior:
     def __init__(
         self,
         spectrometer_model: SpectrometerModel,
