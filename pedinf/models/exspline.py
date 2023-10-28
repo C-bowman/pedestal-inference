@@ -91,3 +91,16 @@ class exspline(ProfileModel):
         L = 1 / (1 + exp(-z))
         q = L * (1 - theta[1])
         return s * ((q + theta[1]) * (basis_derivs @ theta[3:]) + q * (1 - L) * (4 * self.drn / theta[2]))
+
+    def get_model_configuration(self) -> dict:
+        return {
+            "knots": self.knots,
+            "low_field_side": True if self.drn == -1 else False
+        }
+
+    @classmethod
+    def from_configuration(cls, config: dict):
+        return cls(
+            knots=config["knots"],
+            low_field_side=config["low_field_side"]
+        )

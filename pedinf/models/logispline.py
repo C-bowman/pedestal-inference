@@ -84,3 +84,16 @@ class logispline(ProfileModel):
         L = 1 / (1 + exp(-z))
         q = L * (1 - L)
         return q * (4 * self.drn * theta[1] / theta[2]) + basis_derivs @ theta[3:]
+
+    def get_model_configuration(self) -> dict:
+        return {
+            "knots": self.knots,
+            "low_field_side": True if self.drn == -1 else False
+        }
+
+    @classmethod
+    def from_configuration(cls, config: dict):
+        return cls(
+            knots=config["knots"],
+            low_field_side=config["low_field_side"]
+        )
