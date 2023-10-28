@@ -160,3 +160,10 @@ class mtanh(ProfileModel):
         jac[:, 3] = (sigma * z) * L
         jac[:, 4] = 1 - L
         return prediction, jac
+
+    def get_model_configuration(self) -> dict:
+        return {"low_field_side": True if self.drn == -1 else False}
+
+    @classmethod
+    def from_configuration(cls, config: dict):
+        return cls(low_field_side=config["low_field_side"])

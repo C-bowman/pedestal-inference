@@ -33,3 +33,12 @@ class ProfileModel(ABC):
     @abstractmethod
     def update_radius(self, radius: ndarray):
         pass
+
+    @abstractmethod
+    def get_model_configuration(self) -> dict:
+        pass
+
+    @classmethod
+    @abstractmethod
+    def from_configuration(cls, config: dict):
+        pass
