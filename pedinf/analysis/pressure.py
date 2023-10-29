@@ -12,7 +12,7 @@ def pressure_profile_and_gradient(
     ne_profile_samples: ndarray,
     te_profile_samples: ndarray,
     model: ProfileModel,
-):
+) -> dict:
     """
     Calculates the electron pressure and pressure gradient profiles at specified major
     radius positions, given samples of the edge electron temperature and density profiles.
@@ -38,7 +38,7 @@ def pressure_profile_and_gradient(
         of samples and ``m`` is the number of model parameters.
 
     :param model: \
-        A profile model from the ``pedinf.models`` module.
+        An instance of one of the model classes from ``pedinf.models``.
 
     :return: \
         A dictionary of results with the following keys:
@@ -53,14 +53,17 @@ def pressure_profile_and_gradient(
             - ``"pe_gradient_hdi_65"`` : The 65% highest-density interval for the pressure gradient profile.
             - ``"pe_gradient_hdi_95"`` : The 95% highest-density interval for the pressure gradient profile.
     """
+    # make a copy of the model instance so we can avoid changing the original
+    model = model.from_configuration(model.get_model_configuration())
+    model.update_radius(radius)
     n_samples = ne_profile_samples.shape[0]
     pe_profs = zeros([n_samples, radius.size])
     pe_grads = zeros([n_samples, radius.size])
     for smp in range(n_samples):
-        te_prof = model.prediction(radius, te_profile_samples[smp, :])
-        te_grad = model.gradient(radius, te_profile_samples[smp, :])
-        ne_prof = model.prediction(radius, ne_profile_samples[smp, :])
-        ne_grad = model.gradient(radius, ne_profile_samples[smp, :])
+        te_prof = model.forward_prediction(te_profile_samples[smp, :])
+        te_grad = model.forward_gradient(te_profile_samples[smp, :])
+        ne_prof = model.forward_prediction(ne_profile_samples[smp, :])
+        ne_grad = model.forward_gradient(ne_profile_samples[smp, :])
 
         pe_profs[smp, :] = te_prof * ne_prof
         pe_grads[smp, :] = te_prof * ne_grad + ne_prof * te_grad
@@ -100,7 +103,7 @@ def pressure_parameters(
         The temperature parameter vector for the given profile model.
 
     :param model: \
-        Pass either the ``mtanh` or ``lpm`` models from ``pedinf.models``.
+        An instance of either the ``mtanh` or ``lpm`` model classes from ``pedinf.models``.
 
     :param return_diagnostics: \
         If set as ``True``, a dictionary containing diagnostic information about
@@ -109,6 +112,14 @@ def pressure_parameters(
     :return: \
         The fitted pressure profile parameters.
     """
+    if model.name not in ["mtanh", "lpm"]:
+        raise ValueError(
+            """\n
+            [ pressure_parameters error ]
+            >> 'model' argument must be an instance of either the
+            >> 'mtanh' or 'lpm' model classes.
+            """
+        )
 
     R0_index = model.parameters["pedestal_location"]
     w_index = model.parameters["pedestal_width"]

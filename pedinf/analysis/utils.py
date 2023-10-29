@@ -26,7 +26,7 @@ def locate_radius(
         The parameters of the profile model.
 
     :param model: \
-        A ``ProfileModel`` from the ``pedinf.models`` module.
+        An instance of one of the model classes from ``pedinf.models``.
 
     :param search_limits: \
         A tuple of two floats specifying the lower and upper limits

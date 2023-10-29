@@ -19,7 +19,7 @@ def profiles_by_temperature(
         density and electron pressure is calculated.
 
     :param model: \
-        A profile model from the ``pedinf.models`` module.
+        An instance of one of the model classes from ``pedinf.models``.
 
     :param ne_profile_samples: \
         A set of sampled parameters of a profile model from ``pedinf.models``

@@ -12,7 +12,7 @@ def separatrix_given_temperature(
     te_sep: float = None,
     te_sep_error: float = None,
     te_sep_samples: ndarray = None,
-):
+) -> dict:
     """
     Given an estimated separatrix electron temperature (and optionally an associated
     uncertainty) this function estimates the separatrix major radius, electron density
@@ -31,7 +31,7 @@ def separatrix_given_temperature(
         of samples and ``m`` is the number of model parameters.
 
     :param model: \
-        A profile model from the ``pedinf.models`` module.
+        An instance of one of the model classes from ``pedinf.models``.
 
     :param te_sep: \
         The electron temperature value for which the corresponding major radius,
@@ -146,12 +146,16 @@ def separatrix_given_scaling(
         of samples and ``m`` is the number of model parameters.
 
     :param model: \
-        A profile model from the ``pedinf.models`` module.
+        An instance of one of the model classes from ``pedinf.models``.
 
     :param callable separatrix_scaling: \
         A callable which maps a given separatrix density to a corresponding
         separatrix temperature. It must take an array of electron density
         values as its only argument.
+
+    :param radius_limits: \
+        A tuple specifying the range of radius values used to search for the
+        separatrix position in the form ``(lower_limit, upper_limit)``.
 
     :return: \
         A dictionary containing the mean and standard-deviation for the
