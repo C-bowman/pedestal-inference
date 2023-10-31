@@ -6,3 +6,6 @@ Edge profile models
 
 .. autoclass:: pedinf.models.lpm
    :members: prediction, gradient, jacobian, prediction_and_jacobian
+
+.. autoclass:: pedinf.models.exspline
+   :members: prediction, gradient, jacobian, prediction_and_jacobian
