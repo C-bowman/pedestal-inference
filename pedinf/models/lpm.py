@@ -65,7 +65,7 @@ class lpm(ProfileModel):
         See the documentation for ``lpm`` for details of the model itself.
 
         :param radius: \
-            Radius values at which the gradient is evaluated.
+            Radius values at which the prediction is evaluated.
 
         :param theta: \
             The model parameters as an array.
@@ -111,7 +111,7 @@ class lpm(ProfileModel):
         See the documentation for ``lpm`` for details of the model itself.
 
         :param radius: \
-            Radius values at which the gradient is evaluated.
+            Radius values at which the jacobian is evaluated.
 
         :param theta: \
             The model parameters as an array.
@@ -146,7 +146,7 @@ class lpm(ProfileModel):
         See the documentation for ``lpm`` for details of the model itself.
 
         :param radius: \
-            Radius values at which the gradient is evaluated.
+            Radius values at which the prediction and jacobian are evaluated.
 
         :param theta: \
             The model parameters as an array.

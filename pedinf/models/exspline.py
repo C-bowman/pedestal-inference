@@ -6,6 +6,37 @@ from pedinf.models.utils import b_spline_basis
 
 
 class exspline(ProfileModel):
+    r"""
+    'exspline' uses a combination of exponentiated b-splines and a logistic function to model
+    the profile shape. The logistic function is combined with the exponentiated splines
+    multiplicatively, and so models the pedestal as a localised fractional decrease in the
+    background profile. The size of the fractional decrease is controlled by the parameter
+    :math:`f \in [0, 1]`.
+
+    .. math::
+
+       \mathrm{exspline}(R, \, \underline{\theta}) = \exp{\left[\sum_{i=1}^{n} a_i \phi_i(R)\right]}
+       \left((1 - f) L(z) + f\right)
+
+    where
+
+    .. math::
+
+       z = -4 \frac{R - R_0}{w}, \quad \quad L(x) = \frac{1}{1 + e^{-x}}
+
+    The model parameter vector :math:`\underline{\theta}` has the following order:
+
+    .. math::
+
+       \underline{\theta} = \left[ \,  R_0, \, f, \, w, \, a_1 \, a_2, \, \ldots, \, a_n \, \right],
+
+    where
+
+     - :math:`R_0` is the logistic function location.
+     - :math:`f` is the logistic function 'floor'.
+     - :math:`w` is the logistic function width.
+     - :math:`a_i` is the weight for the :math:`i`'th b-spline basis function.
+    """
     name = "exspline"
 
     def __init__(self, knots: ndarray, radius=None, low_field_side=True):
@@ -32,18 +63,74 @@ class exspline(ProfileModel):
         self.forward_prediction_and_jacobian = partial(self._prediction_and_jacobian, self.radius, self.basis)
 
     def prediction(self, radius: ndarray, theta: ndarray) -> ndarray:
+        """
+        Calculates the prediction of the ``exspline`` model.
+        See the documentation for ``exspline`` for details of the model itself.
+
+        :param radius: \
+            Radius values at which the prediction is evaluated.
+
+        :param theta: \
+            The model parameters as an array.
+
+        :return: \
+            The predicted profile at the given radius values.
+        """
         basis = b_spline_basis(radius, self.knots)
         return self._prediction(radius, basis, theta)
 
     def gradient(self, radius: ndarray, theta: ndarray) -> ndarray:
+        """
+        Calculates the gradient (w.r.t. major radius) of the ``exspline`` model.
+        See the documentation for ``exspline`` for details of the model itself.
+
+        :param radius: \
+            Radius values at which the gradient is evaluated.
+
+        :param theta: \
+            The model parameters as an array.
+
+        :return: \
+            The predicted gradient profile at the given radius values.
+        """
         basis, derivs = b_spline_basis(radius, self.knots, derivatives=True)
         return self._gradient(radius, basis, derivs, theta)
 
     def jacobian(self, radius: ndarray, theta: ndarray) -> ndarray:
+        """
+        Calculates the jacobian of the ``exspline`` model. The jacobian is a matrix where
+        element :math:`i, j` is the derivative of the model prediction at the
+        :math:`i`'th radial position with respect to the :math:`j`'th model parameter.
+        See the documentation for ``exspline`` for details of the model itself.
+
+        :param radius: \
+            Radius values at which the jacobian is evaluated.
+
+        :param theta: \
+            The model parameters as an array.
+
+        :return: \
+            The jacobian matrix for the given radius values.
+        """
         basis = b_spline_basis(radius, self.knots)
         return self._jacobian(radius, basis, theta)
 
     def prediction_and_jacobian(self, radius: ndarray, theta: ndarray) -> Tuple[ndarray, ndarray]:
+        """
+        Calculates the prediction and the jacobian of the ``exspline`` model. The jacobian
+        is a matrix where element :math:`i, j` is the derivative of the model prediction
+        at the :math:`i`'th radial position with respect to the :math:`j`'th model parameter.
+        See the documentation for ``exspline`` for details of the model itself.
+
+        :param radius: \
+            Radius values at which the prediction and jacobian are evaluated.
+
+        :param theta: \
+            The model parameters as an array.
+
+        :return: \
+            The model prediction and the jacobian matrix for the given radius values.
+        """
         basis = b_spline_basis(radius, self.knots)
         return self._prediction_and_jacobian(radius, basis, theta)
 
