@@ -12,4 +12,3 @@ measurements.
 
    models
    analysis
-   pedinf
