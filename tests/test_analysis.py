@@ -1,7 +1,6 @@
 from numpy import array, linspace
 from numpy.random import default_rng
 from pedinf.models import lpm, mtanh, ProfileModel
-from typing import Type
 from pedinf.analysis.utils import locate_radius
 from pedinf.analysis import pressure_parameters, pressure_profile_and_gradient
 import pytest
