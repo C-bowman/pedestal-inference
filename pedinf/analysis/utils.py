@@ -1,5 +1,5 @@
 from numpy import isfinite, sort, expand_dims, take_along_axis
-from numpy import atleast_1d, linspace, zeros, ndarray
+from numpy import array, atleast_1d, linspace, zeros, ndarray
 import matplotlib.pyplot as plt
 from warnings import warn
 from pedinf.models import ProfileModel
@@ -128,6 +128,31 @@ def vectorised_hdi(samples: ndarray, frac: float) -> ndarray:
 
 
 class PlasmaProfile:
+    """
+    Class for representing the estimate of a plasma profile derived from
+    samples of possible profiles produced by uncertainty quantification.
+
+    :param axis: \
+        The axis values at which the profile samples were evaluated as
+        a 1D ``numpy.ndarray``.
+
+    :param profile_samples: \
+        The profile samples as a 2D ``numpy.ndarray`` of shape ``(axis.size, n_samples)``.
+
+    :param axis_label: \
+        A description of the axis on which the profiles have been evaluated,
+        e.g. 'major radius'.
+
+    :param profile_label: \
+        A description of the quantity represented by the profile,
+        e.g. 'electron temperature'.
+
+    :param axis_units: \
+        The units of the axis values, e.g. 'm' for metres.
+
+    :param profile_units: \
+        The units of the profile values, e.g. 'eV' for electron temperature.
+    """
     def __init__(
         self,
         axis: ndarray,
@@ -139,7 +164,7 @@ class PlasmaProfile:
     ):
         self.axis = axis
         self.profile_samples = profile_samples
-        self.axis_label = "x-axis" if axis_label is None else axis_label
+        self.axis_label = "profile axis" if axis_label is None else axis_label
         self.profile_label = "profile value" if profile_label is None else profile_label
         self.axis_units = "" if axis_units is None else axis_units
         self.profile_units = "" if profile_units is None else profile_units
@@ -156,6 +181,66 @@ class PlasmaProfile:
         self.hdi_65 = vectorised_hdi(self.profile_samples.T, frac=0.65)
         self.hdi_95 = vectorised_hdi(self.profile_samples.T, frac=0.95)
         self.mean = self.profile_samples.mean(axis=1)
+
+    @classmethod
+    def from_parameters(
+        cls,
+        axis: ndarray,
+        parameter_samples: ndarray,
+        model: ProfileModel,
+        gradient: bool = False,
+        axis_label: str = None,
+        profile_label: str = None,
+        axis_units: str = None,
+        profile_units: str = None,
+    ):
+        """
+        Class for representing the estimate of a plasma profile derived from
+        samples of possible profiles produced by uncertainty quantification.
+
+        :param axis: \
+            The axis values at which the profile samples are to be evaluated as
+            a 1D ``numpy.ndarray``.
+
+        :param parameter_samples: \
+            The model parameter samples as a 2D ``numpy.ndarray`` of shape
+            ``(axis.size, model.n_params)``.
+
+        :param model: \
+            An instance of a profile model class from the ``pedinf.models`` module.
+
+        :param gradient: \
+            If given ``True`` the profile samples will be produced using
+            ``model.gradient()`` instead of ``model.prediction()``. Default
+            is ``False``.
+
+        :param axis_label: \
+            A description of the axis on which the profiles have been evaluated,
+            e.g. 'major radius'.
+
+        :param profile_label: \
+            A description of the quantity represented by the profile,
+            e.g. 'electron temperature'.
+
+        :param axis_units: \
+            The units of the axis values, e.g. 'm' for metres.
+
+        :param profile_units: \
+            The units of the profile values, e.g. 'eV' for electron temperature.
+        """
+
+        if gradient:
+            profile_samples = array([model.gradient(axis, s) for s in parameter_samples])
+        else:
+            profile_samples = array([model.prediction(axis, s) for s in parameter_samples])
+        return cls(
+            axis=axis,
+            profile_samples=profile_samples,
+            axis_label=axis_label,
+            profile_label=profile_label,
+            axis_units=axis_units,
+            profile_units=profile_units
+        )
 
     def plot(self, axis=None, color=None):
         if axis is None:
