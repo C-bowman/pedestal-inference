@@ -1,10 +1,11 @@
 from numpy import sqrt
 from numpy import linspace, zeros, ndarray
 from functools import partial
+from typing import Tuple
 from scipy.optimize import minimize
 from pedinf.models import ProfileModel
 from inference.likelihoods import GaussianLikelihood
-from pedinf.analysis.utils import vectorised_hdi
+from pedinf.analysis.profile import PlasmaProfile
 
 
 def pressure_profile_and_gradient(
@@ -12,7 +13,7 @@ def pressure_profile_and_gradient(
     ne_profile_samples: ndarray,
     te_profile_samples: ndarray,
     model: ProfileModel,
-) -> dict:
+) -> Tuple[PlasmaProfile, PlasmaProfile]:
     """
     Calculates the electron pressure and pressure gradient profiles at specified major
     radius positions, given samples of the edge electron temperature and density profiles.
@@ -41,17 +42,9 @@ def pressure_profile_and_gradient(
         An instance of one of the model classes from ``pedinf.models``.
 
     :return: \
-        A dictionary of results with the following keys:
-
-            - ``"radius"`` : The given radius axis on which the pressure profile was evaluated.
-            - ``"pe_profiles"`` : The sampled pressure profiles as a 2D ``numpy.ndarray``.
-            - ``"pe_mean"`` : The mean of the posterior predictive distribution for the pressure.
-            - ``"pe_hdi_65"`` : The 65% highest-density interval for the pressure profile.
-            - ``"pe_hdi_95"`` : The 95% highest-density interval for the pressure profile.
-            - ``"pe_gradient_profiles"`` : The sampled pressure gradient profiles as a 2D ``numpy.ndarray``.
-            - ``"pe_gradient_mean"`` : The mean of the posterior predictive distribution for the pressure gradient.
-            - ``"pe_gradient_hdi_65"`` : The 65% highest-density interval for the pressure gradient profile.
-            - ``"pe_gradient_hdi_95"`` : The 95% highest-density interval for the pressure gradient profile.
+        A tuple of two ``PlasmaProfile`` objects, the first corresponding to the
+        electron pressure profile, and the second to the electron pressure gradient
+        profile.
     """
     # make a copy of the model instance so we can avoid changing the original
     model = model.from_configuration(model.get_model_configuration())
@@ -72,17 +65,25 @@ def pressure_profile_and_gradient(
     pe_profs *= 1.60217663e-19
     pe_grads *= 1.60217663e-19
 
-    return {
-        "radius": radius,
-        "pe_profiles": pe_profs,
-        "pe_mean": pe_profs.mean(axis=0),
-        "pe_hdi_65": vectorised_hdi(pe_profs, frac=0.65),
-        "pe_hdi_95": vectorised_hdi(pe_profs, frac=0.95),
-        "pe_gradient_profiles": pe_grads,
-        "pe_gradient_mean": pe_grads.mean(axis=0),
-        "pe_gradient_hdi_65": vectorised_hdi(pe_grads, frac=0.65),
-        "pe_gradient_hdi_95": vectorised_hdi(pe_grads, frac=0.95),
-    }
+    pe_profile = PlasmaProfile(
+        axis=radius,
+        profile_samples=pe_profs,
+        axis_label="major radius",
+        axis_units="m",
+        profile_label="electron pressure",
+        profile_units="N / m^2"
+    )
+
+    pe_gradient = PlasmaProfile(
+        axis=radius,
+        profile_samples=pe_grads,
+        axis_label="major radius",
+        axis_units="m",
+        profile_label="electron pressure gradient",
+        profile_units="N / m^3"
+    )
+
+    return pe_profile, pe_gradient
 
 
 def pressure_parameters(
