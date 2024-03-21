@@ -204,7 +204,7 @@ class PlasmaProfile:
 
         :param parameter_samples: \
             The model parameter samples as a 2D ``numpy.ndarray`` of shape
-            ``(axis.size, model.n_params)``.
+            ``(model.n_parameters, n_samples)``.
 
         :param model: \
             An instance of a profile model class from the ``pedinf.models`` module.
@@ -229,10 +229,14 @@ class PlasmaProfile:
             The units of the profile values, e.g. 'eV' for electron temperature.
         """
 
+        assert parameter_samples.ndim == 2
+        assert parameter_samples.shape[0] == model.n_parameters
         if gradient:
-            profile_samples = array([model.gradient(axis, s) for s in parameter_samples])
+            profile_samples = array([model.gradient(axis, s) for s in parameter_samples.T])
         else:
-            profile_samples = array([model.prediction(axis, s) for s in parameter_samples])
+            profile_samples = array([model.prediction(axis, s) for s in parameter_samples.T])
+
+        assert profile_samples.shape == (axis.size, parameter_samples.shape[1])
         return cls(
             axis=axis,
             profile_samples=profile_samples,
