@@ -1,6 +1,7 @@
 from numpy import zeros, ndarray
 from pedinf.models import ProfileModel
-from pedinf.analysis.utils import locate_radius, PlasmaProfile
+from pedinf.analysis.utils import locate_radius
+from pedinf.analysis import PlasmaProfile
 from typing import Sequence
 
 
