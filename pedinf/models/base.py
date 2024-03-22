@@ -42,3 +42,10 @@ class ProfileModel(ABC):
     @abstractmethod
     def from_configuration(cls, config: dict):
         pass
+
+    def copy(self):
+        """
+        Build and return a separate copy of the profile model with
+        the same configuration.
+        """
+        return self.from_configuration(self.get_model_configuration())

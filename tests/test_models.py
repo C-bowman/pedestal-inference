@@ -80,3 +80,11 @@ def test_gradient(model: ProfileModel):
         fd = (model.prediction(R + dR, t) - model.prediction(R - dR, t)) * (0.5 / dR)
         error = abs(grad - fd) / abs(fd).max()
         assert error.max() < 1e-4
+
+
+@pytest.mark.parametrize("model", test_models)
+def test_copy(model: ProfileModel):
+    # R, theta = build_test_data(model)
+    model_copy = model.copy()
+    assert id(model_copy) != id(model)
+    assert type(model_copy) is type(model)

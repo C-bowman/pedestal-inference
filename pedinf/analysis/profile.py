@@ -88,9 +88,8 @@ class PlasmaProfile:
             An instance of a profile model class from the ``pedinf.models`` module.
 
         :param gradient: \
-            If given ``True`` the profile samples will be produced using
-            ``model.gradient()`` instead of ``model.prediction()``. Default
-            is ``False``.
+            If given ``True`` the profile samples will be the gradient of the model
+            prediction instead of the prediction itself. Default is ``False``.
 
         :param axis_label: \
             A description of the axis on which the profiles have been evaluated,
@@ -109,10 +108,17 @@ class PlasmaProfile:
 
         assert parameter_samples.ndim == 2
         assert parameter_samples.shape[0] == model.n_parameters
+        # make a copy of the original model to avoid altering its internal state
+        model = model.from_configuration(model.get_model_configuration())
+        model.update_radius(axis)
         if gradient:
-            profile_samples = array([model.gradient(axis, s) for s in parameter_samples.T])
+            profile_samples = array(
+                [model.forward_gradient(s) for s in parameter_samples.T]
+            )
         else:
-            profile_samples = array([model.prediction(axis, s) for s in parameter_samples.T])
+            profile_samples = array(
+                [model.forward_prediction(s) for s in parameter_samples.T]
+            )
 
         assert profile_samples.shape == (axis.size, parameter_samples.shape[1])
         return cls(
