@@ -55,6 +55,7 @@ class PlasmaProfile:
         assert self.axis.ndim == 1
         assert self.profile_samples.ndim == 2
         assert self.profile_samples.shape[0] == self.axis.size
+        assert self.profile_samples.shape[1] > 3
 
         self.hdi_65 = vectorised_hdi(self.profile_samples.T, frac=0.65)
         self.hdi_95 = vectorised_hdi(self.profile_samples.T, frac=0.95)
@@ -114,12 +115,11 @@ class PlasmaProfile:
         if gradient:
             profile_samples = array(
                 [model.forward_gradient(s) for s in parameter_samples.T]
-            )
+            ).T
         else:
             profile_samples = array(
                 [model.forward_prediction(s) for s in parameter_samples.T]
-            )
-
+            ).T
         assert profile_samples.shape == (axis.size, parameter_samples.shape[1])
         return cls(
             axis=axis,
@@ -130,7 +130,16 @@ class PlasmaProfile:
             profile_units=profile_units
         )
 
-    def plot(self, axis=None, color=None):
+    def plot(self, axis=None, color: str = None):
+        """
+        Plot the profile.
+
+        :param axis: \
+            A `matplotlib` axis object on which the profile will be plotted.
+
+        :param color: \
+            A valid ``matplotlib`` color string which will be used to plot the profile.
+        """
         if axis is None:
             fig = plt.figure()
             ax = fig.add_subplot(1, 1, 1)
@@ -166,3 +175,13 @@ class PlasmaProfile:
 
         if axis is None:
             plt.show()
+
+    def __str__(self):
+        return f"""\n
+        \r[ PlasmaProfile object ]
+        \r>> profile label: {self.profile_label}
+        \r>> profile units: {self.profile_units if self.profile_units != "" else "none"}
+        \r>>    axis label: {self.axis_label}
+        \r>>    axis units: {self.axis_units if self.axis_units != "" else "none"}
+        \r>>    axis range: {self.axis.min()} -> {self.axis.max()}
+        """
