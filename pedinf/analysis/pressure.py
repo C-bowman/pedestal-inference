@@ -67,7 +67,7 @@ def pressure_profile_and_gradient(
 
     pe_profile = PlasmaProfile(
         axis=radius,
-        profile_samples=pe_profs,
+        profile_samples=pe_profs.T,
         axis_label="major radius",
         axis_units="m",
         profile_label="electron pressure",
@@ -76,7 +76,7 @@ def pressure_profile_and_gradient(
 
     pe_gradient = PlasmaProfile(
         axis=radius,
-        profile_samples=pe_grads,
+        profile_samples=pe_grads.T,
         axis_label="major radius",
         axis_units="m",
         profile_label="electron pressure gradient",

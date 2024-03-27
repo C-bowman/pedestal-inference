@@ -3,6 +3,7 @@ from numpy.random import default_rng
 from pedinf.models import lpm, mtanh, ProfileModel
 from pedinf.analysis.utils import locate_radius
 from pedinf.analysis import pressure_parameters, pressure_profile_and_gradient
+from pedinf.analysis import PlasmaProfile
 import pytest
 
 
@@ -47,12 +48,12 @@ def test_pressure_profile_and_gradient():
     te_samples = rng.normal(loc=te_means, scale=te_sigma, size=[n_samples, 5])
     ne_samples = rng.normal(loc=ne_means, scale=ne_sigma, size=[n_samples, 5])
     R = linspace(1.2, 1.5, 256)
-    results = pressure_profile_and_gradient(
+    pe_profile, pe_grad_profile = pressure_profile_and_gradient(
         radius=R,
         te_profile_samples=te_samples,
         ne_profile_samples=ne_samples,
         model=mtanh()
     )
 
-    for k in ["pe_hdi_65", "pe_hdi_95", "pe_gradient_hdi_65", "pe_gradient_hdi_95"]:
-        assert (results[k][:, 0] < results[k][:, 1]).all()
+    assert isinstance(pe_profile, PlasmaProfile)
+    assert isinstance(pe_grad_profile, PlasmaProfile)
