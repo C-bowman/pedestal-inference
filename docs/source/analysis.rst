@@ -46,3 +46,13 @@ pressure for a given edge profile model and corresponding set of temperature
 and density parameters.
 
 .. autofunction:: pedinf.analysis.pressure_parameters
+
+
+The PlasmProfile class
+----------------------
+
+`PlasmaProfile` is a data class which packages all the data associated with a given
+estimate of a plasma profile.
+
+.. autoclass:: pedinf.analysis.PlasmaProfile
+   :members: from_parameters, plot
