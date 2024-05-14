@@ -157,7 +157,7 @@ class PlasmaProfile:
             self.hdi_95[:, 1],
             color=col,
             alpha=0.1,
-            label="65% HDI",
+            label="95% HDI",
         )
         ax.fill_between(
             self.axis,
@@ -165,7 +165,7 @@ class PlasmaProfile:
             self.hdi_65[:, 1],
             color=col,
             alpha=0.25,
-            label="95% HDI",
+            label="65% HDI",
         )
         ax.plot(self.axis, self.mean, color=col, ls="dashed", lw=2, label="mean")
         ax.set_ylabel(self._ylabel)
