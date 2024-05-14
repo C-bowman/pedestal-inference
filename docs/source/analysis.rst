@@ -55,4 +55,4 @@ The PlasmProfile class
 estimate of a plasma profile.
 
 .. autoclass:: pedinf.analysis.PlasmaProfile
-   :members: from_parameters, plot
+   :members: axis, profile_samples, mean, hdi_65, hdi_95, axis_label, axis_units, profile_label, profile_units, from_parameters, plot
