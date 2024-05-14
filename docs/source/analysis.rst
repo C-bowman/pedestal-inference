@@ -54,5 +54,5 @@ The PlasmProfile class
 `PlasmaProfile` is a data class which packages all the data associated with a given
 estimate of a plasma profile.
 
-.. autoclass:: pedinf.analysis.profile.PlasmaProfile
+.. autoclass:: pedinf.analysis.PlasmaProfile
    :members: axis, profile_samples, mean, hdi_65, hdi_95, axis_label, axis_units, profile_label, profile_units, from_parameters, plot
