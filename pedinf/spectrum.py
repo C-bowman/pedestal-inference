@@ -1,6 +1,6 @@
-from numpy import sqrt, cos, pi, exp
+from numpy import array, sqrt, cos, pi, exp
 from numpy import ndarray, linspace, zeros
-from scipy.interpolate import RectBivariateSpline
+from scipy.interpolate import RectBivariateSpline, InterpolatedUnivariateSpline
 
 
 def selden(
@@ -132,13 +132,15 @@ class SpectralResponse:
         transmissions: ndarray,
         scattering_angles: ndarray,
         spatial_channels: ndarray,
+        ln_te_range=(-3, 10),
+        delta_angle_range=(-0.03, 0.03),
+        n_temps=64,
+        n_angles=16
     ):
-        n_temps = 64
-        n_angles = 16
         n_spectral_chans = 4
-        ln_te = linspace(-3, 10, n_temps)
+        ln_te = linspace(*ln_te_range, n_temps)
         te_axis = exp(ln_te)
-        delta_angle = linspace(-0.03, 0.03, n_angles)
+        delta_angle = linspace(*delta_angle_range, n_angles)
 
         response = zeros([spatial_channels.size, n_spectral_chans, n_temps, n_angles])
         ln_te_axes = zeros([spatial_channels.size, n_temps])
@@ -155,3 +157,60 @@ class SpectralResponse:
                     transmission=transmissions[chan, j, :],
                 )
         return cls(ln_te_axes, scattering_angle_axes, response)
+
+
+class SpectralResponse1D:
+    def __init__(
+        self,
+        ln_te: ndarray,
+        scattering_angle: ndarray,
+        response: ndarray,
+        scattering_angle_gradient: ndarray
+    ):
+        self.ln_te = ln_te
+        self.scattering_angle = scattering_angle
+        self.angle_grad = scattering_angle_gradient
+        self.response = response
+
+        # build the splines for all spatial / spectral channels
+        n_positions, n_spectra, _ = self.response.shape
+
+        """
+        shift all calls for spectrum values and gradients out of the spectrometer
+        model and into spectral response models, and have a spectral response ABC,
+        so the spectral response modelling can be easily swapped.
+        """
+
+    @classmethod
+    def calculate_response(
+        cls,
+        wavelengths: ndarray,
+        transmissions: ndarray,
+        scattering_angles: ndarray,
+        spatial_channels: ndarray,
+        ln_te_range=(-3, 10),
+        n_temps=128,
+    ):
+        n_spectral_chans = 4
+        ln_te = linspace(*ln_te_range, n_temps)
+        te_axis = exp(ln_te)
+
+        response = zeros([spatial_channels.size, n_spectral_chans, n_temps])
+        angle_grad = zeros([spatial_channels.size, n_spectral_chans, n_temps])
+        dA = 1e-6
+
+        for i, chan in enumerate(spatial_channels):
+            angle_axis = scattering_angles[chan] + array([0., -dA, dA])
+            for j in range(n_spectral_chans):
+
+                f0, f1, f2 = calculate_filter_response(
+                    electron_temperature=te_axis,
+                    scattering_angle=angle_axis,
+                    wavelength=wavelengths[chan, j, :],
+                    transmission=transmissions[chan, j, :],
+                ).T
+
+                response[i, j, :] = f0
+                angle_grad[i, j, :] = 0.5 * (f2 - f1) / dA
+
+        return cls(ln_te, scattering_angles, response, angle_grad)
