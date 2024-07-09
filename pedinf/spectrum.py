@@ -90,6 +90,8 @@ def calculate_filter_response(
     """
     integration_weights = trapezium_weights(wavelength)
     integration_weights *= transmission / laser_wavelength
+    # remove any negative weights caused by small negative transmissions
+    integration_weights[integration_weights < 0.] = 0.
 
     spectrum = selden(
         electron_temperature[None, :, None],
