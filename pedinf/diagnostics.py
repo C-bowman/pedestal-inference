@@ -36,31 +36,17 @@ class SpectrometerModel:
 
     def spectrum(self, Te: ndarray, ne: ndarray) -> ndarray:
         ln_te = log(Te)
-        y = zeros(self.spectrum_shape)
         coeffs = ne * self.instfunc.weights
-        for j in range(self.n_spectra):
-            splines = self.response.splines[j]
-            for i in range(self.n_positions):
-                y[i, j, :] = splines[i].ev(
-                    ln_te[i, :], self.instfunc.scattering_angle[i, :]
-                )
+        y = self.response.get_response(ln_te, self.instfunc.scattering_angle)
         y *= coeffs[:, None, :]
         return y.sum(axis=2)
 
     def spectrum_jacobian(self, Te: ndarray, ne: ndarray):
         ln_te = log(Te)
-        dS_dT = zeros(self.spectrum_shape)
-        dS_dn = zeros(self.spectrum_shape)
         coeffs = ne * self.instfunc.weights
-        for j in range(self.n_spectra):
-            splines = self.response.splines[j]
-            for i in range(self.n_positions):
-                dS_dn[i, j, :] = splines[i].ev(
-                    ln_te[i, :], self.instfunc.scattering_angle[i, :]
-                )
-                dS_dT[i, j, :] = splines[i].ev(
-                    ln_te[i, :], self.instfunc.scattering_angle[i, :], dx=1
-                )
+        dS_dT, dS_dn = self.response.get_response_and_gradient(
+            ln_te, self.instfunc.scattering_angle
+        )
         dS_dT *= (coeffs / Te)[:, None, :]
         dS_dn *= self.instfunc.weights[:, None, :]
         return dS_dT, dS_dn

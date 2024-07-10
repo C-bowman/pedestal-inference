@@ -1,6 +1,7 @@
-from numpy import array, sqrt, cos, pi, exp
+from numpy import array, sqrt, cos, pi, exp, searchsorted
 from numpy import ndarray, linspace, zeros
-from scipy.interpolate import RectBivariateSpline, InterpolatedUnivariateSpline
+from scipy.interpolate import RectBivariateSpline
+from pedinf.spline import cubic_spline_coefficients
 
 
 def selden(
@@ -111,9 +112,9 @@ class SpectralResponse:
         self.response = response
 
         # build the splines for all spatial / spectral channels
-        n_positions, n_spectra, _, _ = self.response.shape
+        self.n_positions, self.n_spectra, _, _ = self.response.shape
         self.splines = []
-        for j in range(n_spectra):
+        for j in range(self.n_spectra):
             self.splines.append(
                 [
                     RectBivariateSpline(
@@ -121,9 +122,33 @@ class SpectralResponse:
                         y=self.scattering_angle[i, :],
                         z=self.response[i, j, :, :],
                     )
-                    for i in range(n_positions)
+                    for i in range(self.n_positions)
                 ]
             )
+
+    def get_response(self, ln_te: ndarray, scattering_angle: ndarray):
+        y = zeros((self.n_positions, self.n_spectra, ln_te.shape[1]))
+        for j in range(self.n_spectra):
+            splines = self.splines[j]
+            for i in range(self.n_positions):
+                y[i, j, :] = splines[i].ev(
+                    ln_te[i, :], scattering_angle[i, :]
+                )
+        return y
+
+    def get_response_and_gradient(self, ln_te: ndarray, scattering_angle: ndarray):
+        dS_dT = zeros((self.n_positions, self.n_spectra, ln_te.shape[1]))
+        dS_dn = zeros((self.n_positions, self.n_spectra, ln_te.shape[1]))
+        for j in range(self.n_spectra):
+            splines = self.splines[j]
+            for i in range(self.n_positions):
+                dS_dn[i, j, :] = splines[i].ev(
+                    ln_te[i, :], scattering_angle[i, :]
+                )
+                dS_dT[i, j, :] = splines[i].ev(
+                    ln_te[i, :], scattering_angle[i, :], dx=1
+                )
+        return dS_dT, dS_dn
 
     @classmethod
     def calculate_response(
@@ -167,19 +192,53 @@ class SpectralResponse1D:
         response: ndarray,
         scattering_angle_gradient: ndarray
     ):
-        self.ln_te = ln_te
+        self.ln_te_knots = ln_te
+        self.knot_spacing = ln_te[1] - ln_te[0]
         self.scattering_angle = scattering_angle
         self.angle_grad = scattering_angle_gradient
         self.response = response
 
         # build the splines for all spatial / spectral channels
-        n_positions, n_spectra, _ = self.response.shape
+        self.n_positions, self.n_spectra, self.n_knots = self.response.shape
 
-        """
-        shift all calls for spectrum values and gradients out of the spectrometer
-        model and into spectral response models, and have a spectral response ABC,
-        so the spectral response modelling can be easily swapped.
-        """
+        self.a_rspn = zeros([self.n_positions, self.n_spectra, self.n_knots - 1])
+        self.b_rspn = zeros([self.n_positions, self.n_spectra, self.n_knots - 1])
+        self.a_grad = zeros([self.n_positions, self.n_spectra, self.n_knots - 1])
+        self.b_grad = zeros([self.n_positions, self.n_spectra, self.n_knots - 1])
+        for i in range(self.n_positions):
+            for j in range(self.n_spectra):
+                a, b = cubic_spline_coefficients(
+                    self.ln_te_knots, self.response[i, j, :]
+                )
+                self.a_rspn[i, j, :] = a
+                self.b_rspn[i, j, :] = b
+
+                a, b = cubic_spline_coefficients(
+                    self.ln_te_knots, self.angle_grad[i, j, :]
+                )
+                self.a_grad[i, j, :] = a
+                self.b_grad[i, j, :] = b
+
+    def get_response(self, ln_te: ndarray, scattering_angle: ndarray):
+        y = zeros((self.n_positions, self.n_spectra, ln_te.shape[1]))
+
+        # get the spline coordinate
+        inds = searchsorted(self.ln_te_knots, ln_te) - 1
+        t = (ln_te - self.ln_te_knots[inds]) / self.knot_spacing
+        u = 1 - t
+        ut = u * t
+        res_spline = (
+            self.response[:, :, inds] * u + self.response[:, :, inds + 1] * t
+            + ut * (u * self.a_rspn[:, :, inds] + t * self.b_rspn[:, :, inds])
+        )
+        grad_spline = (
+            self.angle_grad[:, :, inds] * u + self.angle_grad[:, :, inds + 1] * t
+            + ut * (u * self.a_grad[:, :, inds] + t * self.b_grad[:, :, inds])
+        )
+        angle_diff = scattering_angle - self.scattering_angle[:, None]
+
+        y = res_spline + angle_diff * grad_spline
+        return y
 
     @classmethod
     def calculate_response(
