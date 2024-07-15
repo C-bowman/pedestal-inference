@@ -1,7 +1,41 @@
-from numpy import array, sqrt, cos, pi, exp, searchsorted, stack
-from numpy import ndarray, linspace, zeros
+from numpy import array, sqrt, cos, pi, exp, searchsorted, stack, take_along_axis
+from numpy import ndarray, linspace, zeros, float32
 from scipy.interpolate import RectBivariateSpline
 from pedinf.spline import cubic_spline_coefficients
+
+
+def build_jax_response():
+    import jax.numpy as jnp
+    from jax import jit
+
+    def fast_response(
+        ln_te: ndarray,
+        angle_diffs: ndarray,
+        y: ndarray,
+        a: ndarray,
+        b: ndarray,
+        ln_te_knots: ndarray,
+        knot_spacing: float
+    ):
+        # get the spline coordinate
+        inds = jnp.searchsorted(ln_te_knots, ln_te) - 1
+        t = (ln_te - ln_te_knots[inds]) / knot_spacing
+        u = 1 - t
+        ut = u * t
+
+        y_u = jnp.take_along_axis(y, inds[:, None, :, None], axis=2)
+        y_t = jnp.take_along_axis(y, inds[:, None, :, None] + 1, axis=2)
+        a_slc = jnp.take_along_axis(a, inds[:, None, :, None], axis=2)
+        b_slc = jnp.take_along_axis(b, inds[:, None, :, None], axis=2)
+
+        t1 = u[:, None, :, None] * y_u
+        t2 = t[:, None, :, None] * y_t
+        t3 = u[:, None, :, None] * a_slc
+        t4 = t[:, None, :, None] * b_slc
+        splines = (t1 + t2 + (t3 + t4) * ut[:, None, :, None])
+        return splines[:, :, :, 0] + angle_diffs[:, None, :] * splines[:, :, :, 1]
+
+    return jit(fast_response)
 
 
 def selden(
@@ -190,20 +224,21 @@ class SpectralResponse1D:
         ln_te: ndarray,
         scattering_angle: ndarray,
         response: ndarray,
-        scattering_angle_gradient: ndarray
+        scattering_angle_gradient: ndarray,
+        use_jax=True
     ):
-        self.ln_te_knots = ln_te
+        self.ln_te_knots = ln_te.astype(float32)
         self.knot_spacing = ln_te[1] - ln_te[0]
-        self.scattering_angle = scattering_angle
+        self.scattering_angle = scattering_angle.astype(float32)
         self.angle_grad = scattering_angle_gradient
         self.response = response
 
         # build the splines for all spatial / spectral channels
         self.n_positions, self.n_spectra, self.n_knots = self.response.shape
 
-        self.y = stack([response, scattering_angle_gradient], axis=3)
-        self.a = zeros([self.n_positions, self.n_spectra, self.n_knots - 1, 2])
-        self.b = zeros([self.n_positions, self.n_spectra, self.n_knots - 1, 2])
+        self.y = stack([response, scattering_angle_gradient], axis=3, dtype=float32)
+        self.a = zeros([self.n_positions, self.n_spectra, self.n_knots - 1, 2], dtype=float32)
+        self.b = zeros([self.n_positions, self.n_spectra, self.n_knots - 1, 2], dtype=float32)
         for i in range(self.n_positions):
             for j in range(self.n_spectra):
                 a, b = cubic_spline_coefficients(
@@ -218,23 +253,23 @@ class SpectralResponse1D:
                 self.a[i, j, :, 1] = a
                 self.b[i, j, :, 1] = b
 
-    def get_response(self, ln_te: ndarray, scattering_angle: ndarray):
+        if use_jax:
+            self.jit_compiled_response = build_jax_response()
+            self.get_response = self.jax_response
+        else:
+            self.get_response = self.python_response
+
+    def python_response(self, ln_te: ndarray, scattering_angle: ndarray):
         # get the spline coordinate
         inds = searchsorted(self.ln_te_knots, ln_te) - 1
         t = (ln_te - self.ln_te_knots[inds]) / self.knot_spacing
         u = 1 - t
         ut = u * t
 
-        y_u = zeros((self.n_positions, self.n_spectra, ln_te.shape[1], 2))
-        y_t = zeros((self.n_positions, self.n_spectra, ln_te.shape[1], 2))
-        a_slc = zeros((self.n_positions, self.n_spectra, ln_te.shape[1], 2))
-        b_slc = zeros((self.n_positions, self.n_spectra, ln_te.shape[1], 2))
-
-        for i in range(self.n_positions):
-            y_u[i, :, :, :] = self.y[i, :, :, :][:, inds[i, :], :]
-            y_t[i, :, :, :] = self.y[i, :, :, :][:, inds[i, :] + 1, :]
-            a_slc[i, :, :, :] = self.a[i, :, :, :][:, inds[i, :], :]
-            b_slc[i, :, :, :] = self.b[i, :, :, :][:, inds[i, :], :]
+        y_u = take_along_axis(self.y, inds[:, None, :, None], axis=2)
+        y_t = take_along_axis(self.y, inds[:, None, :, None] + 1, axis=2)
+        a_slc = take_along_axis(self.a, inds[:, None, :, None], axis=2)
+        b_slc = take_along_axis(self.b, inds[:, None, :, None], axis=2)
 
         t1 = u[:, None, :, None] * y_u
         t2 = t[:, None, :, None] * y_t
@@ -245,6 +280,17 @@ class SpectralResponse1D:
         angle_diff = scattering_angle - self.scattering_angle[:, None]
         return splines[:, :, :, 0] + angle_diff[:, None, :] * splines[:, :, :, 1]
 
+    def jax_response(self, ln_te: ndarray, scattering_angle: ndarray):
+        return self.jit_compiled_response(
+            ln_te,
+            scattering_angle - self.scattering_angle[:, None],
+            self.y,
+            self.a,
+            self.b,
+            self.ln_te_knots,
+            self.knot_spacing,
+        )
+
     @classmethod
     def calculate_response(
         cls,
@@ -254,6 +300,7 @@ class SpectralResponse1D:
         spatial_channels: ndarray,
         ln_te_range=(-3, 10),
         n_temps=128,
+        use_jax=True
     ):
         n_spectral_chans = 4
         ln_te = linspace(*ln_te_range, n_temps)
@@ -277,4 +324,10 @@ class SpectralResponse1D:
                 response[i, j, :] = f0
                 angle_grad[i, j, :] = 0.5 * (f2 - f1) / dA
 
-        return cls(ln_te, scattering_angles[spatial_channels], response, angle_grad)
+        return cls(
+            ln_te,
+            scattering_angles[spatial_channels],
+            response,
+            angle_grad,
+            use_jax=use_jax
+        )
