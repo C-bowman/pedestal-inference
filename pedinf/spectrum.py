@@ -1,4 +1,4 @@
-from numpy import array, sqrt, cos, pi, exp, searchsorted, stack, take_along_axis
+from numpy import array, sqrt, cos, pi, exp, log, searchsorted, stack, take_along_axis
 from numpy import ndarray, linspace, zeros, float32
 from scipy.interpolate import RectBivariateSpline
 from pedinf.spline import cubic_spline_coefficients
@@ -15,7 +15,7 @@ def build_jax_response():
         a: ndarray,
         b: ndarray,
         ln_te_knots: ndarray,
-        knot_spacing: float
+        knot_spacing: float,
     ):
         # get the spline coordinate
         inds = jnp.searchsorted(ln_te_knots, ln_te) - 1
@@ -32,17 +32,17 @@ def build_jax_response():
         t2 = t[:, None, :, None] * y_t
         t3 = u[:, None, :, None] * a_slc
         t4 = t[:, None, :, None] * b_slc
-        splines = (t1 + t2 + (t3 + t4) * ut[:, None, :, None])
+        splines = t1 + t2 + (t3 + t4) * ut[:, None, :, None]
         return splines[:, :, :, 0] + angle_diffs[:, None, :] * splines[:, :, :, 1]
 
     def fast_response_and_grad(
-            ln_te: ndarray,
-            angle_diffs: ndarray,
-            y: ndarray,
-            a: ndarray,
-            b: ndarray,
-            ln_te_knots: ndarray,
-            knot_spacing: float
+        ln_te: ndarray,
+        angle_diffs: ndarray,
+        y: ndarray,
+        a: ndarray,
+        b: ndarray,
+        ln_te_knots: ndarray,
+        knot_spacing: float,
     ):
         # get the spline coordinate
         inds = jnp.searchsorted(ln_te_knots, ln_te) - 1
@@ -59,13 +59,54 @@ def build_jax_response():
         t2 = t[:, None, :, None] * y_t
         t3 = u[:, None, :, None] * a_slc
         t4 = t[:, None, :, None] * b_slc
-        splines = (t1 + t2 + (t3 + t4) * ut[:, None, :, None])
+        splines = t1 + t2 + (t3 + t4) * ut[:, None, :, None]
         return (
             splines[:, :, :, 2] + angle_diffs[:, None, :] * splines[:, :, :, 3],
             splines[:, :, :, 0] + angle_diffs[:, None, :] * splines[:, :, :, 1],
         )
 
-    return jit(fast_response), jit(fast_response_and_grad)
+    def fast_spectrum(
+        Te: ndarray,
+        ne: ndarray,
+        angle_diffs: ndarray,
+        weights: ndarray,
+        y: ndarray,
+        a: ndarray,
+        b: ndarray,
+        ln_te_knots: ndarray,
+        knot_spacing: float,
+    ):
+        ln_te = jnp.log(Te)
+        coeffs = ne * weights
+        response = fast_response(
+            ln_te, angle_diffs, y, a, b, ln_te_knots, knot_spacing,
+        )
+        return jnp.sum(response * coeffs[:, None, :], axis=2)
+
+    def fast_spectrum_jacobian(
+        Te: ndarray,
+        ne: ndarray,
+        angle_diffs: ndarray,
+        weights: ndarray,
+        y: ndarray,
+        a: ndarray,
+        b: ndarray,
+        ln_te_knots: ndarray,
+        knot_spacing: float,
+    ):
+        ln_te = jnp.log(Te)
+        gradient, response = fast_response_and_grad(
+            ln_te, angle_diffs, y, a, b, ln_te_knots, knot_spacing,
+        )
+        coeffs = (ne * weights) / Te
+        return gradient * coeffs[:, None, :], response * weights[:, None, :]
+
+    return (
+        jit(fast_response),
+        jit(fast_response_and_grad),
+        jit(fast_spectrum),
+        jit(fast_spectrum_jacobian),
+    )
 
 
 def selden(
@@ -156,7 +197,7 @@ def calculate_filter_response(
     integration_weights = trapezium_weights(wavelength)
     integration_weights *= transmission / laser_wavelength
     # remove any negative weights caused by small negative transmissions
-    integration_weights[integration_weights < 0.] = 0.
+    integration_weights[integration_weights < 0.0] = 0.0
 
     spectrum = selden(
         electron_temperature[None, :, None],
@@ -195,9 +236,7 @@ class SpectralResponse:
         for j in range(self.n_spectra):
             splines = self.splines[j]
             for i in range(self.n_positions):
-                y[i, j, :] = splines[i].ev(
-                    ln_te[i, :], scattering_angle[i, :]
-                )
+                y[i, j, :] = splines[i].ev(ln_te[i, :], scattering_angle[i, :])
         return y
 
     def get_response_and_gradient(self, ln_te: ndarray, scattering_angle: ndarray):
@@ -206,12 +245,27 @@ class SpectralResponse:
         for j in range(self.n_spectra):
             splines = self.splines[j]
             for i in range(self.n_positions):
-                dS_dn[i, j, :] = splines[i].ev(
-                    ln_te[i, :], scattering_angle[i, :]
-                )
+                dS_dn[i, j, :] = splines[i].ev(ln_te[i, :], scattering_angle[i, :])
                 dS_dT[i, j, :] = splines[i].ev(
                     ln_te[i, :], scattering_angle[i, :], dx=1
                 )
+        return dS_dT, dS_dn
+
+    def spectrum(self, Te: ndarray, ne: ndarray, weights: ndarray, scattering_angle: ndarray) -> ndarray:
+        ln_te = log(Te)
+        coeffs = ne * weights
+        y = self.get_response(ln_te, scattering_angle)
+        y *= coeffs[:, None, :]
+        return y.sum(axis=2)
+
+    def spectrum_jacobian(self, Te: ndarray, ne: ndarray, weights: ndarray, scattering_angle: ndarray):
+        ln_te = log(Te)
+        coeffs = ne * weights
+        dS_dT, dS_dn = self.get_response_and_gradient(
+            ln_te, scattering_angle
+        )
+        dS_dT *= (coeffs / Te)[:, None, :]
+        dS_dn *= weights[:, None, :]
         return dS_dT, dS_dn
 
     @classmethod
@@ -224,7 +278,7 @@ class SpectralResponse:
         ln_te_range=(-3, 10),
         delta_angle_range=(-0.03, 0.03),
         n_temps=64,
-        n_angles=16
+        n_angles=16,
     ):
         n_spectral_chans = 4
         ln_te = linspace(*ln_te_range, n_temps)
@@ -257,7 +311,7 @@ class SpectralResponse1D:
         scattering_angle_gradient: ndarray,
         ln_te_gradient: ndarray,
         ln_te_and_angle_gradient: ndarray,
-        use_jax=True
+        use_jax=True,
     ):
         self.ln_te_knots = ln_te.astype(float32)
         self.knot_spacing = ln_te[1] - ln_te[0]
@@ -273,17 +327,21 @@ class SpectralResponse1D:
                 response,
                 scattering_angle_gradient,
                 ln_te_gradient,
-                ln_te_and_angle_gradient
+                ln_te_and_angle_gradient,
             ],
             axis=3,
-            dtype=float32
+            dtype=float32,
         )
-        self.a = zeros([self.n_positions, self.n_spectra, self.n_knots - 1, 4], dtype=float32)
-        self.b = zeros([self.n_positions, self.n_spectra, self.n_knots - 1, 4], dtype=float32)
+        self.a = zeros(
+            [self.n_positions, self.n_spectra, self.n_knots - 1, 4], dtype=float32
+        )
+        self.b = zeros(
+            [self.n_positions, self.n_spectra, self.n_knots - 1, 4], dtype=float32
+        )
 
         for i in range(self.n_positions):
             for j in range(self.n_spectra):
-                for k in range(3):
+                for k in range(4):
                     a, b = cubic_spline_coefficients(
                         self.ln_te_knots, self.y[i, j, :, k]
                     )
@@ -295,11 +353,48 @@ class SpectralResponse1D:
         self.y_no_grads = self.y[:, :, :, :2].copy()
 
         if use_jax:
-            self.jit_compiled_response, self.jit_compiled_gradient = build_jax_response()
+            (
+                self.jit_compiled_response,
+                self.jit_compiled_gradient,
+                self.jit_compiled_spectrum,
+                self.jit_compiled_spectrum_jacobian,
+            ) = build_jax_response()
             self.get_response = self.jax_response
             self.get_response_and_gradient = self.jax_response_gradient
+            self.spectrum = self.jax_spectrum
+            self.spectrum_jacobian = self.jax_spectrum_jacobian
         else:
             self.get_response = self.python_response
+
+    def jax_spectrum(
+        self, Te: ndarray, ne: ndarray, weights: ndarray, scattering_angle: ndarray
+    ):
+        return self.jit_compiled_spectrum(
+            Te,
+            ne,
+            scattering_angle - self.scattering_angle[:, None],
+            weights,
+            self.y_no_grads,
+            self.a_no_grads,
+            self.b_no_grads,
+            self.ln_te_knots,
+            self.knot_spacing,
+        )
+
+    def jax_spectrum_jacobian(
+        self, Te: ndarray, ne: ndarray, weights: ndarray, scattering_angle: ndarray
+    ):
+        return self.jit_compiled_spectrum_jacobian(
+            Te,
+            ne,
+            scattering_angle - self.scattering_angle[:, None],
+            weights,
+            self.y,
+            self.a,
+            self.b,
+            self.ln_te_knots,
+            self.knot_spacing,
+        )
 
     def python_response(self, ln_te: ndarray, scattering_angle: ndarray):
         # get the spline coordinate
@@ -317,7 +412,7 @@ class SpectralResponse1D:
         t2 = t[:, None, :, None] * y_t
         t3 = u[:, None, :, None] * a_slc
         t4 = t[:, None, :, None] * b_slc
-        splines = (t1 + t2 + (t3 + t4) * ut[:, None, :, None])
+        splines = t1 + t2 + (t3 + t4) * ut[:, None, :, None]
 
         angle_diff = scattering_angle - self.scattering_angle[:, None]
         return splines[:, :, :, 0] + angle_diff[:, None, :] * splines[:, :, :, 1]
@@ -338,7 +433,7 @@ class SpectralResponse1D:
         t2 = t[:, None, :, None] * y_t
         t3 = u[:, None, :, None] * a_slc
         t4 = t[:, None, :, None] * b_slc
-        splines = (t1 + t2 + (t3 + t4) * ut[:, None, :, None])
+        splines = t1 + t2 + (t3 + t4) * ut[:, None, :, None]
 
         angle_diff = scattering_angle - self.scattering_angle[:, None]
         return (
@@ -377,7 +472,7 @@ class SpectralResponse1D:
         spatial_channels: ndarray,
         ln_te_range=(-3, 10),
         n_temps=128,
-        use_jax=True
+        use_jax=True,
     ):
         n_spectral_chans = 4
         ln_te = linspace(*ln_te_range, n_temps)
@@ -391,9 +486,8 @@ class SpectralResponse1D:
         dT = 1e-4
 
         for i, chan in enumerate(spatial_channels):
-            angle_axis = scattering_angles[chan] + array([0., -dA, dA])
+            angle_axis = scattering_angles[chan] + array([0.0, -dA, dA])
             for j in range(n_spectral_chans):
-
                 f0, f1, f2 = calculate_filter_response(
                     electron_temperature=te_axis,
                     scattering_angle=angle_axis,
@@ -430,5 +524,5 @@ class SpectralResponse1D:
             scattering_angle_gradient=angle_grad,
             ln_te_gradient=temp_grad,
             ln_te_and_angle_gradient=double_grad,
-            use_jax=use_jax
+            use_jax=use_jax,
         )
