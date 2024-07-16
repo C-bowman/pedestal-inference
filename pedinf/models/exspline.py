@@ -1,6 +1,7 @@
-from typing import Tuple
+from typing import Tuple, Sequence
+from types import ModuleType
 from functools import partial
-from numpy import exp, ndarray, zeros
+from numpy import ndarray
 from pedinf.models import ProfileModel
 from pedinf.models.utils import b_spline_basis
 
@@ -39,7 +40,7 @@ class exspline(ProfileModel):
     """
     name = "exspline"
 
-    def __init__(self, knots: ndarray, radius=None, low_field_side=True):
+    def __init__(self, knots: ndarray, radius=None, low_field_side=True, jit_compile=True):
         self.knots = knots
         self.drn = -1 if low_field_side else 1
 
@@ -54,13 +55,28 @@ class exspline(ProfileModel):
         if radius is not None:
             self.update_radius(radius)
 
+        if jit_compile:
+            import jax.numpy as jnp
+            from jax import jit
+            methods = [jit(m) for m in build_methods(lib=jnp)]
+        else:
+            import numpy as np
+            methods = build_methods(lib=np)
+
+        (
+            self._prediction,
+            self._jacobian,
+            self._prediction_and_jacobian,
+            self._gradient
+        ) = methods
+
     def update_radius(self, radius: ndarray):
         self.radius = radius
         self.basis, self.derivs = b_spline_basis(self.radius, self.knots, derivatives=True)
-        self.forward_prediction = partial(self._prediction, self.radius, self.basis)
-        self.forward_gradient = partial(self._gradient, self.radius, self.basis, self.derivs)
-        self.forward_jacobian = partial(self._jacobian, self.radius, self.basis)
-        self.forward_prediction_and_jacobian = partial(self._prediction_and_jacobian, self.radius, self.basis)
+        self.forward_prediction = partial(self._prediction, self.radius, self.basis,  self.drn)
+        self.forward_gradient = partial(self._gradient, self.radius, self.basis, self.derivs,  self.drn)
+        self.forward_jacobian = partial(self._jacobian, self.radius, self.basis,  self.drn)
+        self.forward_prediction_and_jacobian = partial(self._prediction_and_jacobian, self.radius, self.basis,  self.drn)
 
     def prediction(self, radius: ndarray, theta: ndarray) -> ndarray:
         """
@@ -77,7 +93,7 @@ class exspline(ProfileModel):
             The predicted profile at the given radius values.
         """
         basis = b_spline_basis(radius, self.knots)
-        return self._prediction(radius, basis, theta)
+        return self._prediction(radius, basis, self.drn, theta)
 
     def gradient(self, radius: ndarray, theta: ndarray) -> ndarray:
         """
@@ -94,7 +110,7 @@ class exspline(ProfileModel):
             The predicted gradient profile at the given radius values.
         """
         basis, derivs = b_spline_basis(radius, self.knots, derivatives=True)
-        return self._gradient(radius, basis, derivs, theta)
+        return self._gradient(radius, basis, derivs, self.drn, theta)
 
     def jacobian(self, radius: ndarray, theta: ndarray) -> ndarray:
         """
@@ -113,7 +129,7 @@ class exspline(ProfileModel):
             The jacobian matrix for the given radius values.
         """
         basis = b_spline_basis(radius, self.knots)
-        return self._jacobian(radius, basis, theta)
+        return self._jacobian(radius, basis, self.drn, theta)
 
     def prediction_and_jacobian(self, radius: ndarray, theta: ndarray) -> Tuple[ndarray, ndarray]:
         """
@@ -132,52 +148,7 @@ class exspline(ProfileModel):
             The model prediction and the jacobian matrix for the given radius values.
         """
         basis = b_spline_basis(radius, self.knots)
-        return self._prediction_and_jacobian(radius, basis, theta)
-
-    def _prediction(self, radius: ndarray, basis: ndarray, theta: ndarray) -> ndarray:
-        z = (4 * self.drn) * (radius - theta[0]) / theta[2]
-        logistic = (1 - theta[1]) / (1 + exp(-z)) + theta[1]
-        exp_spline = exp(basis @ theta[3:])
-        return logistic * exp_spline
-
-    def _jacobian(self, radius: ndarray, basis: ndarray, theta: ndarray):
-        exp_spline = exp(basis @ theta[3:])
-        z = (4 * self.drn) * (radius - theta[0]) / theta[2]
-        L = 1 / (1 + exp(-z))
-        q = L * (1 - theta[1])
-        dy_df = (1 - L) * exp_spline
-        dy_dz = q * dy_df
-        y = (q + theta[1]) * exp_spline
-
-        jac = zeros([radius.size, self.n_parameters])
-        jac[:, 0] = -dy_dz * (4 * self.drn / theta[2])
-        jac[:, 1] = dy_df
-        jac[:, 2] = -dy_dz * z / theta[2]
-        jac[:, self.parameters["basis_weights"]] = basis * y[:, None]
-        return jac
-
-    def _prediction_and_jacobian(self, radius: ndarray, basis: ndarray, theta: ndarray):
-        exp_spline = exp(basis @ theta[3:])
-        z = (4 * self.drn) * (radius - theta[0]) / theta[2]
-        L = 1 / (1 + exp(-z))
-        q = L * (1 - theta[1])
-        dy_df = (1 - L) * exp_spline
-        dy_dz = q * dy_df
-        y = (q + theta[1]) * exp_spline
-
-        jac = zeros([radius.size, self.n_parameters])
-        jac[:, 0] = -dy_dz * (4 * self.drn / theta[2])
-        jac[:, 1] = dy_df
-        jac[:, 2] = -dy_dz * z / theta[2]
-        jac[:, self.parameters["basis_weights"]] = basis * y[:, None]
-        return y, jac
-
-    def _gradient(self, radius: ndarray, basis: ndarray, basis_derivs: ndarray, theta: ndarray):
-        s = exp(basis @ theta[3:])
-        z = (4 * self.drn) * (radius - theta[0]) / theta[2]
-        L = 1 / (1 + exp(-z))
-        q = L * (1 - theta[1])
-        return s * ((q + theta[1]) * (basis_derivs @ theta[3:]) + q * (1 - L) * (4 * self.drn / theta[2]))
+        return self._prediction_and_jacobian(radius, basis, self.drn, theta)
 
     def get_model_configuration(self) -> dict:
         return {
@@ -191,3 +162,52 @@ class exspline(ProfileModel):
             knots=config["knots"],
             low_field_side=config["low_field_side"]
         )
+
+
+def build_methods(lib: ModuleType) -> Sequence[callable]:
+    def prediction(radius: ndarray, basis: ndarray, drn: int, theta: ndarray) -> ndarray:
+        z = (4 * drn / theta[2]) * (radius - theta[0])
+        logistic = (1 - theta[1]) / (1 + lib.exp(-z)) + theta[1]
+        exp_spline = lib.exp(basis @ theta[3:])
+        return logistic * exp_spline
+
+    def jacobian(radius: ndarray, basis: ndarray, drn: int, theta: ndarray):
+        exp_spline = lib.exp(basis @ theta[3:])
+        z = (4 * drn / theta[2]) * (radius - theta[0])
+        L = 1 / (1 + lib.exp(-z))
+        q = L * (1 - theta[1])
+        dy_df = (1 - L) * exp_spline
+        dy_dz = q * dy_df
+        y = (q + theta[1]) * exp_spline
+
+        jac = lib.zeros([radius.size, theta.size])
+        jac[:, 0] = -dy_dz * (4 * drn / theta[2])
+        jac[:, 1] = dy_df
+        jac[:, 2] = -dy_dz * z / theta[2]
+        jac[:, 2:] = basis * y[:, None]
+        return jac
+
+    def prediction_and_jacobian(radius: ndarray, basis: ndarray, drn: int, theta: ndarray):
+        exp_spline = lib.exp(basis @ theta[3:])
+        z = (4 * drn / theta[2]) * (radius - theta[0])
+        L = 1 / (1 + lib.exp(-z))
+        q = L * (1 - theta[1])
+        dy_df = (1 - L) * exp_spline
+        dy_dz = q * dy_df
+        y = (q + theta[1]) * exp_spline
+
+        jac = lib.zeros([radius.size, theta.size])
+        jac[:, 0] = -dy_dz * (4 * drn / theta[2])
+        jac[:, 1] = dy_df
+        jac[:, 2] = -dy_dz * z / theta[2]
+        jac[:, 2:] = basis * y[:, None]
+        return y, jac
+
+    def gradient(radius: ndarray, basis: ndarray, basis_derivs: ndarray, drn: int, theta: ndarray):
+        s = lib.exp(basis @ theta[3:])
+        z = (4 * drn / theta[2]) * (radius - theta[0])
+        L = 1 / (1 + lib.exp(-z))
+        q = L * (1 - theta[1])
+        return s * ((q + theta[1]) * (basis_derivs @ theta[3:]) + q * (1 - L) * (4 * drn / theta[2]))
+
+    return prediction, jacobian, prediction_and_jacobian, gradient
