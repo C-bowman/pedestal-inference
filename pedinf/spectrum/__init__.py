@@ -227,8 +227,9 @@ class SpectralResponse1D:
             axis=3,
             dtype=float32,
         )
-        self.a = zeros(self.y.shape, dtype=float32)
-        self.b = zeros(self.y.shape, dtype=float32)
+        coeff_shape = (self.n_positions, self.n_spectra, self.n_knots - 1, 4)
+        self.a = zeros(coeff_shape, dtype=float32)
+        self.b = zeros(coeff_shape, dtype=float32)
 
         for i in range(self.n_positions):
             for j in range(self.n_spectra):
