@@ -1,4 +1,4 @@
-from numpy import ndarray, log, searchsorted, take_along_axis
+from numpy import ndarray, log, searchsorted, take_along_axis, clip
 
 
 def response(
@@ -11,7 +11,7 @@ def response(
     knot_spacing: float,
 ):
     # get the spline coordinate
-    inds = searchsorted(ln_te_knots, ln_te) - 1
+    inds = searchsorted(ln_te_knots, clip(ln_te, ln_te_knots[0], ln_te_knots[-1])) - 1
     t = (ln_te - ln_te_knots[inds]) / knot_spacing
     u = 1 - t
     ut = u * t
@@ -39,7 +39,7 @@ def response_and_grad(
     knot_spacing: float,
 ):
     # get the spline coordinate
-    inds = searchsorted(ln_te_knots, ln_te) - 1
+    inds = searchsorted(ln_te_knots, clip(ln_te, ln_te_knots[0], ln_te_knots[-1])) - 1
     t = (ln_te - ln_te_knots[inds]) / knot_spacing
     u = 1 - t
     ut = u * t

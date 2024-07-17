@@ -13,7 +13,10 @@ def response(
     knot_spacing: float,
 ):
     # get the spline coordinate
-    inds = jnp.searchsorted(ln_te_knots, ln_te) - 1
+    inds = jnp.searchsorted(
+        ln_te_knots,
+        jnp.clip(ln_te, ln_te_knots[0], ln_te_knots[-1])
+    ) - 1
     t = (ln_te - ln_te_knots[inds]) / knot_spacing
     u = 1 - t
     ut = u * t
@@ -41,7 +44,10 @@ def response_and_grad(
     knot_spacing: float,
 ):
     # get the spline coordinate
-    inds = jnp.searchsorted(ln_te_knots, ln_te) - 1
+    inds = jnp.searchsorted(
+        ln_te_knots,
+        jnp.clip(ln_te, ln_te_knots[0], ln_te_knots[-1])
+    ) - 1
     t = (ln_te - ln_te_knots[inds]) / knot_spacing
     u = 1 - t
     ut = u * t
