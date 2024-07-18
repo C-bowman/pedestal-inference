@@ -1,14 +1,14 @@
-from numpy import exp, linspace, zeros, arange, ndarray
-from pedinf.spectrum import SpectralResponse1D, calculate_filter_response
+from numpy import exp, linspace, zeros, arange, ndarray, meshgrid, array
+from pedinf.spectrum import SpectralResponse, calculate_filter_response
 
 
-def calculate_response(
+def generate_test_response_data(
     wavelengths: ndarray,
     transmissions: ndarray,
     scattering_angles: ndarray,
     spatial_channels: ndarray,
     ln_te_range=(-3, 10),
-    delta_angle_range=(-0.03, 0.03),
+    delta_angle_range=(-0.015, 0.015),
     n_temps=64,
     n_angles=16,
 ):
@@ -76,17 +76,74 @@ def generate_testing_filters():
             wavelengths[:, i, :], c=centres[i], w=widths[i], n=exponents[i]
         )[None, :]
 
-    spatial_channels = arange(0, 130)
+    # pick a few channels which cover the full range of scattering angles
+    spatial_channels = array([0, 33, 66, 99, 129])
     # generate testing scattering angles from a quadratric
     coeffs = [7.85941e-07, -6.43046e-03, 2.1297]
-    scattering_angles = coeffs[2] + spatial_channels * coeffs[1] + spatial_channels ** 2 * coeffs[0]
+    full_chans = arange(0, 130)
+    scattering_angles = coeffs[2] + full_chans * coeffs[1] + full_chans ** 2 * coeffs[0]
     return wavelengths, transmissions, scattering_angles, spatial_channels
 
 
-wavelengths, transmissions, scattering_angles, spatial_channels = generate_testing_filters()
-response = SpectralResponse1D.calculate_response(
-    wavelengths=wavelengths,
-    transmissions=transmissions,
-    spatial_channels=spatial_channels,
-    scattering_angles=scattering_angles
-)
+def test_spectrum_model():
+    wavelengths, transmissions, scattering_angles, spatial_channels = generate_testing_filters()
+    n_chans = spatial_channels.size
+    # specify knots settings, and also test-points inbetween the knots
+    knot_range = (-3., 10.)
+    n_knots = 128
+    knot_spacing = (knot_range[1] - knot_range[0]) / n_knots
+    test_range = (knot_range[0] + 0.5 * knot_spacing, knot_range[1] - 0.5 * knot_spacing)
+    n_test_temps = n_knots - 1
+
+    # build the spectrum response model
+    response = SpectralResponse.calculate_response(
+        wavelengths=wavelengths,
+        transmissions=transmissions,
+        spatial_channels=spatial_channels,
+        scattering_angles=scattering_angles,
+        ln_te_range=knot_range,
+        n_temps=n_knots,
+        use_jax=False
+    )
+
+    # generate the target values for spectral response and its gradient
+    ln_te_axes, scattering_angle_axes, target_response, target_gradient = generate_test_response_data(
+        wavelengths=wavelengths,
+        transmissions=transmissions,
+        spatial_channels=spatial_channels,
+        scattering_angles=scattering_angles,
+        ln_te_range=test_range,
+        n_temps=n_test_temps,
+    )
+
+    # combine the variations of ln_te and angle to generate the full testing points
+    n_test_points = ln_te_axes.shape[1] * scattering_angle_axes.shape[1]
+    ln_te_test_points = zeros([n_chans, n_test_points])
+    angle_test_points = zeros([n_chans, n_test_points])
+
+    for i in range(n_chans):
+        ln_te_vals, angle_vals = meshgrid(
+            ln_te_axes[i, :], scattering_angle_axes[i, :], indexing="ij"
+        )
+        ln_te_test_points[i, :] = ln_te_vals.flatten()
+        angle_test_points[i, :] = angle_vals.flatten()
+
+    # get the predictions of the test values
+    spline_gradient, spline_response = response.response_and_grad(
+        ln_te=ln_te_test_points,
+        scattering_angle=angle_test_points
+    )
+
+    # re-shape to match the target values
+    spline_response.resize(target_response.shape)
+    spline_gradient.resize(target_response.shape)
+
+    response_error = spline_response - target_response
+    max_response = array([target_response[:, i, :, :].max() for i in range(4)])
+    max_response_errors = array([abs(response_error[:, i, :, :]).max() for i in range(4)])
+    assert ((max_response_errors / max_response) < 1e-3).all()
+
+    gradient_error = spline_gradient - target_gradient
+    max_gradient = array([target_gradient[:, i, :, :].max() for i in range(4)])
+    max_gradient_errors = array([abs(gradient_error[:, i, :, :]).max() for i in range(4)])
+    assert ((max_gradient_errors / max_gradient) < 1e-3).all()

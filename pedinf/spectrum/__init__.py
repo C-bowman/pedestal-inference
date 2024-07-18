@@ -103,7 +103,7 @@ def calculate_filter_response(
     return (spectrum * integration_weights[:, None, None]).sum(axis=0)
 
 
-class SpectralResponse:
+class SpectralResponse2D:
     def __init__(
         self, ln_te_axes: ndarray, scattering_angle_axes: ndarray, response: ndarray
     ):
@@ -197,7 +197,7 @@ class SpectralResponse:
         return cls(ln_te_axes, scattering_angle_axes, response)
 
 
-class SpectralResponse1D:
+class SpectralResponse:
     def __init__(
         self,
         ln_te: ndarray,
@@ -251,6 +251,8 @@ class SpectralResponse1D:
 
         self.__spectrum = spec.spectrum
         self.__spectrum_jacobian = spec.spectrum_jacobian
+        self.__response = spec.response
+        self.__response_and_grad = spec.response_and_grad
 
     def spectrum(
         self, Te: ndarray, ne: ndarray, weights: ndarray, scattering_angle: ndarray
@@ -275,6 +277,19 @@ class SpectralResponse1D:
             ne,
             scattering_angle - self.scattering_angle[:, None],
             weights,
+            self.y,
+            self.a,
+            self.b,
+            self.ln_te_knots,
+            self.knot_spacing,
+        )
+
+    def response_and_grad(
+        self, ln_te: ndarray, scattering_angle: ndarray
+    ):
+        return self.__response_and_grad(
+            ln_te,
+            scattering_angle - self.scattering_angle[:, None],
             self.y,
             self.a,
             self.b,
