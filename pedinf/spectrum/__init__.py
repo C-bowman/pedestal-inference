@@ -308,6 +308,27 @@ class SpectralResponse:
         n_temps=128,
         use_jax=True,
     ):
+        response_data = SpectralResponse.calculate_response_data(
+            wavelengths=wavelengths,
+            transmissions=transmissions,
+            scattering_angles=scattering_angles,
+            spatial_channels=spatial_channels,
+            ln_te_range=ln_te_range,
+            n_temps=n_temps,
+            use_jax=use_jax,
+        )
+        return cls(**response_data)
+
+    @staticmethod
+    def calculate_response_data(
+        wavelengths: ndarray,
+        transmissions: ndarray,
+        scattering_angles: ndarray,
+        spatial_channels: ndarray,
+        ln_te_range=(-3, 10),
+        n_temps=128,
+        use_jax=True,
+    ) -> dict:
         n_spectral_chans = 4
         ln_te = linspace(*ln_te_range, n_temps)
         te_axis = exp(ln_te)
@@ -351,7 +372,7 @@ class SpectralResponse:
                 temp_grad[i, j, :] = 0.5 * (dte_2 - dte_1) / dT
                 double_grad[i, j, :] = 0.5 * (dphi_2 - dphi_1) / dT
 
-        return cls(
+        return dict(
             ln_te=ln_te,
             scattering_angle=scattering_angles[spatial_channels],
             response=response,
