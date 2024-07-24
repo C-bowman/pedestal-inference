@@ -103,7 +103,7 @@ def test_spectrum_model():
         scattering_angles=scattering_angles,
         ln_te_range=knot_range,
         n_temps=n_knots,
-        use_jax=False
+        jit_compile=False
     )
 
     # generate the target values for spectral response and its gradient
