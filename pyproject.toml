@@ -3,11 +3,11 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["pedinf", "pedinf.models", "pedinf.analysis"]
+packages = ["pedinf", "pedinf.models", "pedinf.analysis", "pedinf.spectrum"]
 
 [project]
 name = "pedestal-inference"
-version = "0.3.0"
+version = "0.4.0"
 authors = [
   { name="Chris Bowman", email="chris.bowman.physics@gmail.com" },
 ]
@@ -20,11 +20,11 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 dependencies = [
-    "numpy >= 1.20",
-    "scipy >= 1.6.3",
-    "inference-tools >= 0.12.0",
+    "numpy >= 1.22.4",
+    "scipy >= 1.10.1",
+    "inference-tools >= 0.13.2",
 ]
 
 [project.urls]
@@ -35,4 +35,7 @@ documentation = "https://pedestal-inference.readthedocs.io/"
 tests = [
     "pytest >= 3.3.0",
     "pytest-cov >= 3.0.0"
+]
+jit = [
+    "jax >= 0.4.30"
 ]
