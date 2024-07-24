@@ -1,6 +1,22 @@
 from numpy import ndarray
+try:
+    from jax import jit
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        """\n
+        \r[ SpectralResponse error ]
+        \r| Failed to import the 'jax' python package while initialising
+        \r| an instance of the SpectralResponse class.
+        \r|
+        \r| If the 'jit_compile' argument is set to True, the 'jax'
+        \r| python package is used to jit-compile functions used to
+        \r| predict measured spectral response values.
+        \r|
+        \r| jax can be installed as an optional dependency using:
+        \r| >> pip install pedestal-inference[jit]
+        """
+    )
 import jax.numpy as jnp
-from jax import jit
 
 
 def response(

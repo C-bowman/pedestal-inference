@@ -206,7 +206,7 @@ class SpectralResponse:
         scattering_angle_gradient: ndarray,
         ln_te_gradient: ndarray,
         ln_te_and_angle_gradient: ndarray,
-        use_jax=True,
+        jit_compile=False,
     ):
         self.ln_te_knots = ln_te.astype(float32)
         self.knot_spacing = ln_te[1] - ln_te[0]
@@ -244,7 +244,7 @@ class SpectralResponse:
         self.b_no_grads = self.b[:, :, :, :2].copy()
         self.y_no_grads = self.y[:, :, :, :2].copy()
 
-        if use_jax:
+        if jit_compile:
             import pedinf.spectrum.jax as spec
         else:
             import pedinf.spectrum.numpy as spec
@@ -306,7 +306,7 @@ class SpectralResponse:
         spatial_channels: ndarray,
         ln_te_range=(-3, 10),
         n_temps=128,
-        use_jax=True,
+        jit_compile=False,
     ):
         response_data = SpectralResponse.calculate_response_data(
             wavelengths=wavelengths,
@@ -315,9 +315,8 @@ class SpectralResponse:
             spatial_channels=spatial_channels,
             ln_te_range=ln_te_range,
             n_temps=n_temps,
-            use_jax=use_jax,
         )
-        return cls(**response_data)
+        return cls(**response_data, jit_compile=jit_compile)
 
     @staticmethod
     def calculate_response_data(
@@ -327,7 +326,6 @@ class SpectralResponse:
         spatial_channels: ndarray,
         ln_te_range=(-3, 10),
         n_temps=128,
-        use_jax=True,
     ) -> dict:
         n_spectral_chans = 4
         ln_te = linspace(*ln_te_range, n_temps)
@@ -378,6 +376,5 @@ class SpectralResponse:
             response=response,
             scattering_angle_gradient=angle_grad,
             ln_te_gradient=temp_grad,
-            ln_te_and_angle_gradient=double_grad,
-            use_jax=use_jax,
+            ln_te_and_angle_gradient=double_grad
         )

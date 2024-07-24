@@ -36,3 +36,6 @@ tests = [
     "pytest >= 3.3.0",
     "pytest-cov >= 3.0.0"
 ]
+jit = [
+    "jax >= 0.4.30"
+]
