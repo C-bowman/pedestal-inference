@@ -2,7 +2,6 @@ from numpy import zeros, ndarray
 from pedinf.models import ProfileModel
 from pedinf.analysis.utils import locate_radius
 from pedinf.analysis.profile import PlasmaProfile
-from typing import Sequence
 
 
 def profiles_by_temperature(
@@ -10,7 +9,7 @@ def profiles_by_temperature(
     model: ProfileModel,
     ne_profile_samples: ndarray,
     te_profile_samples: ndarray,
-) -> Sequence[PlasmaProfile]:
+) -> tuple[PlasmaProfile, PlasmaProfile, PlasmaProfile]:
     """
     Calculates the major radius, electron density and electron pressure as a
     function of electron temperature for a given set of profile model samples.

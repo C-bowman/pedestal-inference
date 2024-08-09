@@ -1,4 +1,3 @@
-from typing import Tuple
 from functools import partial
 from numpy import exp, ndarray, zeros
 from pedinf.models import ProfileModel
@@ -17,7 +16,7 @@ class logispline(ProfileModel):
             "pedestal_location": 0,
             "pedestal_height": 1,
             "pedestal_width": 2,
-            "basis_weights": slice(3, self.n_parameters)
+            "basis_weights": slice(3, self.n_parameters),
         }
 
         if radius is not None:
@@ -25,11 +24,15 @@ class logispline(ProfileModel):
 
     def update_radius(self, radius: ndarray):
         self.radius = radius
-        self.basis, self.derivs = b_spline_basis(self.radius, self.knots, derivatives=True)
+        self.basis, self.derivs = b_spline_basis(
+            self.radius, self.knots, derivatives=True
+        )
         self.forward_prediction = partial(self._prediction, self.radius, self.basis)
         self.forward_gradient = partial(self._gradient, self.radius, self.derivs)
         self.forward_jacobian = partial(self._jacobian, self.radius, self.basis)
-        self.forward_prediction_and_jacobian = partial(self._prediction_and_jacobian, self.radius, self.basis)
+        self.forward_prediction_and_jacobian = partial(
+            self._prediction_and_jacobian, self.radius, self.basis
+        )
 
     def prediction(self, radius: ndarray, theta: ndarray) -> ndarray:
         basis = b_spline_basis(radius, self.knots)
@@ -43,7 +46,9 @@ class logispline(ProfileModel):
         basis = b_spline_basis(radius, self.knots)
         return self._jacobian(radius, basis, theta)
 
-    def prediction_and_jacobian(self, radius: ndarray, theta: ndarray) -> Tuple[ndarray, ndarray]:
+    def prediction_and_jacobian(
+        self, radius: ndarray, theta: ndarray
+    ) -> tuple[ndarray, ndarray]:
         basis = b_spline_basis(radius, self.knots)
         return self._prediction_and_jacobian(radius, basis, theta)
 
@@ -53,7 +58,7 @@ class logispline(ProfileModel):
         background = basis @ theta[3:]
         return logistic + background
 
-    def _jacobian(self, radius: ndarray, basis: ndarray, theta: ndarray):
+    def _jacobian(self, radius: ndarray, basis: ndarray, theta: ndarray) -> ndarray:
         z = (4 * self.drn) * (radius - theta[0]) / theta[2]
         L = 1 / (1 + exp(-z))
         q = L * (1 - L)
@@ -65,7 +70,9 @@ class logispline(ProfileModel):
         jac[:, self.parameters["basis_weights"]] = basis
         return jac
 
-    def _prediction_and_jacobian(self, radius: ndarray, basis: ndarray, theta: ndarray):
+    def _prediction_and_jacobian(
+        self, radius: ndarray, basis: ndarray, theta: ndarray
+    ) -> tuple[ndarray, ndarray]:
         z = (4 * self.drn) * (radius - theta[0]) / theta[2]
         L = 1 / (1 + exp(-z))
         q = L * (1 - L)
@@ -79,7 +86,9 @@ class logispline(ProfileModel):
         jac[:, self.parameters["basis_weights"]] = basis
         return prediction, jac
 
-    def _gradient(self, radius: ndarray, basis_derivs: ndarray, theta: ndarray):
+    def _gradient(
+        self, radius: ndarray, basis_derivs: ndarray, theta: ndarray
+    ) -> ndarray:
         z = (4 * self.drn) * (radius - theta[0]) / theta[2]
         L = 1 / (1 + exp(-z))
         q = L * (1 - L)
@@ -88,12 +97,9 @@ class logispline(ProfileModel):
     def get_model_configuration(self) -> dict:
         return {
             "knots": self.knots,
-            "low_field_side": True if self.drn == -1 else False
+            "low_field_side": True if self.drn == -1 else False,
         }
 
     @classmethod
     def from_configuration(cls, config: dict):
-        return cls(
-            knots=config["knots"],
-            low_field_side=config["low_field_side"]
-        )
+        return cls(knots=config["knots"], low_field_side=config["low_field_side"])

@@ -2,18 +2,29 @@ from numpy import diff, isfinite, ndarray
 from dataclasses import dataclass
 from pedinf.diagnostics import SpectrometerModel
 from inference.likelihoods import LogisticLikelihood
+from inference.priors import BasePrior
 
 
-class FlatPrior:
-    def __call__(self, theta):
-        return 0.
+class FlatPrior(BasePrior):
+    def __call__(self, theta: ndarray) -> float:
+        return 0.0
 
-    def gradient(self, theta):
-        return 0.
+    def gradient(self, theta: ndarray) -> float:
+        return 0.0
+
+    def cost(self, theta: ndarray) -> float:
+        return 0.0
+
+    def cost_gradient(self, theta: ndarray) -> float:
+        return 0.0
 
 
 @dataclass
 class SpectrumData:
+    """
+    Class to package spectral channel measurement data.
+    """
+
     spectra: ndarray
     errors: ndarray
     spatial_channels: ndarray
@@ -43,21 +54,43 @@ class SpectrumData:
 
 
 class ThomsonProfilePosterior:
+    """
+    Class for evaluating the posterior log-probability of the electron temperature and
+    density profile parameters.
+
+    :param spectrometer_model: \
+        An instance of the ``SpectrometerModel`` class, which server as a forward-model
+        for the polychromator measurements.
+
+    :param spectrum_data: \
+        An instance of the ``SpectrumData`` class, which packages the polychromator
+        measurements, uncertainties and timing data.
+
+    :param likelihood: \
+        Either the ``GaussianLikelihood`` or ``LogisticLikelihood`` class from the
+        ``inference.likelihoods`` module of the ``inference-tools`` package.
+
+    :param prior: \
+        An instance of a prior class from the ``inference.priors`` module, or a custom
+        prior which inherits from the ``BasePrior`` base-class.
+    """
+
     def __init__(
         self,
         spectrometer_model: SpectrometerModel,
         spectrum_data: SpectrumData,
         likelihood=LogisticLikelihood,
-        prior=None,
+        prior: BasePrior = None,
     ):
         self.spectrum = spectrometer_model
         self.data = spectrum_data
 
+        # build the likelihood function for spectral measurements
         self.likelihood = likelihood(
             y_data=self.data.spectra.flatten(),
             sigma=self.data.errors.flatten(),
             forward_model=self.spectrum.predictions,
-            forward_model_jacobian=self.spectrum.predictions_jacobian
+            forward_model_jacobian=self.spectrum.predictions_jacobian,
         )
 
         self.prior = FlatPrior() if prior is None else prior

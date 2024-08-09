@@ -1,7 +1,6 @@
 from numpy import sqrt
 from numpy import linspace, zeros, ndarray
 from functools import partial
-from typing import Tuple
 from scipy.optimize import minimize
 from pedinf.models import ProfileModel
 from inference.likelihoods import GaussianLikelihood
@@ -13,7 +12,7 @@ def pressure_profile_and_gradient(
     ne_profile_samples: ndarray,
     te_profile_samples: ndarray,
     model: ProfileModel,
-) -> Tuple[PlasmaProfile, PlasmaProfile]:
+) -> tuple[PlasmaProfile, PlasmaProfile]:
     """
     Calculates the electron pressure and pressure gradient profiles at specified major
     radius positions, given samples of the edge electron temperature and density profiles.

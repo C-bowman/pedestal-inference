@@ -12,7 +12,7 @@ def separatrix_given_temperature(
     te_sep: float = None,
     te_sep_error: float = None,
     te_sep_samples: ndarray = None,
-) -> dict:
+) -> dict[str, float]:
     """
     Given an estimated separatrix electron temperature (and optionally an associated
     uncertainty) this function estimates the separatrix major radius, electron density
@@ -117,7 +117,7 @@ def separatrix_given_temperature(
     }
 
 
-def linear_find_zero(x1, x2, y1, y2):
+def linear_find_zero(x1: float, x2: float, y1: float, y2: float) -> float:
     return x1 - y1 * (x2 - x1) / (y2 - y1)
 
 

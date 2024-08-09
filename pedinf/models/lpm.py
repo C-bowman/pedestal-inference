@@ -1,4 +1,3 @@
-from typing import Tuple
 from functools import partial
 from numpy import ndarray, log, exp, zeros
 from pedinf.models.base import ProfileModel
@@ -36,6 +35,7 @@ class lpm(ProfileModel):
      - :math:`b` is the background level.
      - :math:`k` is a shaping parameter which affects how the profile decays.
     """
+
     name = "lpm"
     n_parameters = 6
     parameters = {
@@ -57,7 +57,9 @@ class lpm(ProfileModel):
         self.forward_prediction = partial(self.prediction, self.radius)
         self.forward_gradient = partial(self.gradient, self.radius)
         self.forward_jacobian = partial(self.jacobian, self.radius)
-        self.forward_prediction_and_jacobian = partial(self.prediction_and_jacobian, self.radius)
+        self.forward_prediction_and_jacobian = partial(
+            self.prediction_and_jacobian, self.radius
+        )
 
     def prediction(self, radius: ndarray, theta: ndarray) -> ndarray:
         """
@@ -138,7 +140,9 @@ class lpm(ProfileModel):
         jac[:, 5] = (h - b) * Lk * (1 + ln_L - L)
         return jac
 
-    def prediction_and_jacobian(self, radius: ndarray, theta: ndarray) -> Tuple[ndarray, ndarray]:
+    def prediction_and_jacobian(
+        self, radius: ndarray, theta: ndarray
+    ) -> tuple[ndarray, ndarray]:
         """
         Calculates the prediction and the jacobian of the ``lpm`` model. The jacobian
         is a matrix where element :math:`i, j` is the derivative of the model prediction

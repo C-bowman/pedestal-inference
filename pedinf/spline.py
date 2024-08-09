@@ -2,7 +2,10 @@ from numpy import ndarray, zeros, searchsorted
 from scipy.linalg import solveh_banded
 
 
-def cubic_spline_coefficients(x: ndarray, y: ndarray):
+def cubic_spline_coefficients(x: ndarray, y: ndarray) -> tuple[ndarray, ndarray]:
+    """
+    Computes the coefficients of a natural cubic spline in 'symmetric' form.
+    """
     assert x.size == y.size
     assert x.ndim == y.ndim == 1
     assert x.size > 2
@@ -16,8 +19,7 @@ def cubic_spline_coefficients(x: ndarray, y: ndarray):
     assert (dx > 0).all()
 
     v = 1 / dx
-    v_sqr = v**2
-    g = v_sqr * dy
+    g = dy * v**2
 
     # build matrix diagonal
     A[1, 0] = 2 * v[0]
@@ -34,15 +36,16 @@ def cubic_spline_coefficients(x: ndarray, y: ndarray):
 
     # solve the system to get the cubic coefficients
     k = solveh_banded(A, b)
-    a_coeffs = k[:-1]*dx - dy
-    b_coeffs = -k[1:]*dx + dy
+    a_coeffs = k[:-1] * dx - dy
+    b_coeffs = -k[1:] * dx + dy
     return a_coeffs, b_coeffs
 
 
-def evaluate_cubic_spline(x: ndarray, x_knots: ndarray, y_knots: ndarray, a: ndarray, b: ndarray):
+def evaluate_cubic_spline(
+    x: ndarray, x_knots: ndarray, y_knots: ndarray, a: ndarray, b: ndarray
+) -> ndarray:
     inds = searchsorted(x_knots, x) - 1
     dk = x_knots[1:] - x_knots[:-1]
     t = (x - x_knots[inds]) / dk[inds]
     u = 1 - t
     return y_knots[inds] * u + y_knots[inds + 1] * t + u * t * (u * a[inds] + t * b[inds])
-

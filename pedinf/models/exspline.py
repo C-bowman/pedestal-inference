@@ -37,9 +37,10 @@ class exspline(ProfileModel):
      - :math:`w` is the logistic function width.
      - :math:`a_i` is the weight for the :math:`i`'th b-spline basis function.
     """
+
     name = "exspline"
 
-    def __init__(self, knots: ndarray, radius=None, low_field_side=True):
+    def __init__(self, knots: ndarray, radius: ndarray = None, low_field_side=True):
         self.knots = knots
         self.drn = -1 if low_field_side else 1
 
@@ -48,7 +49,7 @@ class exspline(ProfileModel):
             "logistic_location": 0,
             "logistic_floor": 1,
             "logistic_width": 2,
-            "basis_weights": slice(3, self.n_parameters)
+            "basis_weights": slice(3, self.n_parameters),
         }
 
         if radius is not None:
@@ -115,7 +116,9 @@ class exspline(ProfileModel):
         basis = b_spline_basis(radius, self.knots)
         return self._jacobian(radius, basis, theta)
 
-    def prediction_and_jacobian(self, radius: ndarray, theta: ndarray) -> Tuple[ndarray, ndarray]:
+    def prediction_and_jacobian(
+        self, radius: ndarray, theta: ndarray
+    ) -> Tuple[ndarray, ndarray]:
         """
         Calculates the prediction and the jacobian of the ``exspline`` model. The jacobian
         is a matrix where element :math:`i, j` is the derivative of the model prediction
@@ -140,7 +143,7 @@ class exspline(ProfileModel):
         exp_spline = exp(basis @ theta[3:])
         return logistic * exp_spline
 
-    def _jacobian(self, radius: ndarray, basis: ndarray, theta: ndarray):
+    def _jacobian(self, radius: ndarray, basis: ndarray, theta: ndarray) -> ndarray:
         exp_spline = exp(basis @ theta[3:])
         z = (4 * self.drn) * (radius - theta[0]) / theta[2]
         L = 1 / (1 + exp(-z))
@@ -156,7 +159,9 @@ class exspline(ProfileModel):
         jac[:, self.parameters["basis_weights"]] = basis * y[:, None]
         return jac
 
-    def _prediction_and_jacobian(self, radius: ndarray, basis: ndarray, theta: ndarray):
+    def _prediction_and_jacobian(
+        self, radius: ndarray, basis: ndarray, theta: ndarray
+    ) -> tuple[ndarray, ndarray]:
         exp_spline = exp(basis @ theta[3:])
         z = (4 * self.drn) * (radius - theta[0]) / theta[2]
         L = 1 / (1 + exp(-z))
@@ -172,22 +177,24 @@ class exspline(ProfileModel):
         jac[:, self.parameters["basis_weights"]] = basis * y[:, None]
         return y, jac
 
-    def _gradient(self, radius: ndarray, basis: ndarray, basis_derivs: ndarray, theta: ndarray):
+    def _gradient(
+        self, radius: ndarray, basis: ndarray, basis_derivs: ndarray, theta: ndarray
+    ) -> ndarray:
         s = exp(basis @ theta[3:])
         z = (4 * self.drn) * (radius - theta[0]) / theta[2]
         L = 1 / (1 + exp(-z))
         q = L * (1 - theta[1])
-        return s * ((q + theta[1]) * (basis_derivs @ theta[3:]) + q * (1 - L) * (4 * self.drn / theta[2]))
+        return s * (
+            (q + theta[1]) * (basis_derivs @ theta[3:])
+            + q * (1 - L) * (4 * self.drn / theta[2])
+        )
 
     def get_model_configuration(self) -> dict:
         return {
             "knots": self.knots,
-            "low_field_side": True if self.drn == -1 else False
+            "low_field_side": True if self.drn == -1 else False,
         }
 
     @classmethod
     def from_configuration(cls, config: dict):
-        return cls(
-            knots=config["knots"],
-            low_field_side=config["low_field_side"]
-        )
+        return cls(knots=config["knots"], low_field_side=config["low_field_side"])

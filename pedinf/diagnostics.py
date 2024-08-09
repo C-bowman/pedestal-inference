@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from numpy import log, ndarray, zeros, einsum
+from numpy import ndarray, zeros, einsum
 from pedinf.models import ProfileModel
 from pedinf.spectrum import SpectralResponse
 
@@ -11,6 +11,10 @@ class InstrumentFunction:
     weights: ndarray
 
     def __post_init__(self):
+        # check data shapes and values
+        assert self.radius.ndim == 2
+        assert self.radius.shape == self.weights.shape == self.scattering_angle.shape
+        assert ((self.weights >= 0.0) & (self.radius > 0.0)).all()
         # make sure the instrument function weights are normalised
         self.weights /= self.weights.sum(axis=1)[:, None]
 
@@ -36,13 +40,20 @@ class SpectrometerModel:
         self.ne_slc = slice(self.model.n_parameters, 2 * self.model.n_parameters)
 
     def predictions(self, theta: ndarray) -> ndarray:
+        # evaluate the predicted electron temperature and density values on the
+        # grids representing the instrument functions for each spectral channel
         Te = self.model.forward_prediction(theta[self.te_slc])
         ne = self.model.forward_prediction(theta[self.ne_slc])
         Te.resize(self.instfunc.radius.shape)
         ne.resize(self.instfunc.radius.shape)
-        return self.response.spectrum(Te, ne, self.instfunc.weights, self.instfunc.scattering_angle).flatten()
+        # evaluate the prediction of the polychromator measurements
+        return self.response.spectrum(
+            Te, ne, self.instfunc.weights, self.instfunc.scattering_angle
+        ).flatten()
 
     def predictions_jacobian(self, theta: ndarray) -> ndarray:
+        # get the values and jacobians of the electron temperature and density on the
+        # grids representing the instrument functions for each spectral channel
         Te, model_jac_Te = self.model.forward_prediction_and_jacobian(theta[self.te_slc])
         ne, model_jac_ne = self.model.forward_prediction_and_jacobian(theta[self.ne_slc])
         Te.resize(self.instfunc.radius.shape)
@@ -50,7 +61,14 @@ class SpectrometerModel:
         model_jac_Te.resize([*self.instfunc.radius.shape, self.model.n_parameters])
         model_jac_ne.resize([*self.instfunc.radius.shape, self.model.n_parameters])
 
-        dT, dn = self.response.spectrum_jacobian(Te, ne, self.instfunc.weights, self.instfunc.scattering_angle)
+        # get the jacobian of the measurement predictions with respect to the
+        # electron temperature and density values
+        dT, dn = self.response.spectrum_jacobian(
+            Te, ne, self.instfunc.weights, self.instfunc.scattering_angle
+        )
+
+        # Finally get the jacobian of the measurement predictions with respect to
+        # the electron temperature and density profile parameters
         jac_Te = einsum("iqk, ijq -> ijk", model_jac_Te, dT)
         jac_ne = einsum("iqk, ijq -> ijk", model_jac_ne, dn)
 

@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Tuple
 from numpy import ndarray
 
 
@@ -27,7 +26,7 @@ class ProfileModel(ABC):
         pass
 
     @abstractmethod
-    def prediction_and_jacobian(self, radius: ndarray, theta: ndarray) -> Tuple[ndarray, ndarray]:
+    def prediction_and_jacobian(self, radius: ndarray, theta: ndarray) -> tuple[ndarray, ndarray]:
         pass
 
     @abstractmethod

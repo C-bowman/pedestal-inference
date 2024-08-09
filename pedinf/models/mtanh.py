@@ -1,4 +1,3 @@
-from typing import Tuple
 from functools import partial
 from numpy import ndarray, exp, zeros
 from pedinf.models.base import ProfileModel
@@ -129,7 +128,7 @@ class mtanh(ProfileModel):
         jac[:, 4] = 1 - L
         return jac
 
-    def prediction_and_jacobian(self, radius: ndarray, theta: ndarray) -> Tuple[ndarray, ndarray]:
+    def prediction_and_jacobian(self, radius: ndarray, theta: ndarray) -> tuple[ndarray, ndarray]:
         """
         Calculates the prediction and the jacobian of the ``mtanh`` model. The jacobian
         is a matrix where element :math:`i, j` is the derivative of the model prediction
