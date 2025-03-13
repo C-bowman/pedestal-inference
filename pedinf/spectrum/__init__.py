@@ -244,10 +244,14 @@ class SpectralResponse:
         self.b_no_grads = self.b[:, :, :, :2].copy()
         self.y_no_grads = self.y[:, :, :, :2].copy()
 
-        if jit_compile:
+
+        if jit_compile == "numba":
+            import pedinf.spectrum.numba as spec
+        elif jit_compile == "jax":
             import pedinf.spectrum.jax as spec
         else:
             import pedinf.spectrum.numpy as spec
+
 
         self.__spectrum = spec.spectrum
         self.__spectrum_jacobian = spec.spectrum_jacobian

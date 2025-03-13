@@ -39,7 +39,10 @@ test_params = zeros(n_params)
 test_params[forward_model.te_slc] = [1.38, 120., 0.02, 1000., 5.]
 test_params[forward_model.ne_slc] = [1.375, 1e19, 0.015, 5e18, 3e17]
 
+
 # run the function once through to complete jit-compilation
+forward_model.predictions(test_params)
+forward_model.predictions_jacobian(test_params)
 profile_func(forward_model, test_params)
 
 import cProfile
