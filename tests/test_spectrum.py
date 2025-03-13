@@ -1,6 +1,6 @@
 from numpy import exp, linspace, zeros, ndarray, meshgrid, array
 from pedinf.spectrum import SpectralResponse, calculate_filter_response
-from tests.data import build_testing_filters, test_channel_scattering_angles
+from data import build_testing_filters, test_channel_scattering_angles
 
 
 def generate_test_response_data(
