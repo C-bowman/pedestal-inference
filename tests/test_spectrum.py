@@ -1,5 +1,6 @@
-from numpy import exp, linspace, zeros, arange, ndarray, meshgrid, array
+from numpy import exp, linspace, zeros, ndarray, meshgrid, array
 from pedinf.spectrum import SpectralResponse, calculate_filter_response
+from data import build_testing_filters, test_channel_scattering_angles
 
 
 def generate_test_response_data(
@@ -52,41 +53,9 @@ def generate_test_response_data(
     return ln_te_axes, scattering_angle_axes, response, gradient
 
 
-def superguass(x, c, w, n=4):
-    z = (x - c) / w
-    return exp(-0.5 * z**n)
-
-
-def generate_testing_filters():
-    # parameters for a set of testing polychromator filters
-    # generated using super-gaussians
-    wavelength_starts = [1.053e-06, 1.035e-06, 9.8e-07, 8.1e-07]
-    wavelength_ends = [1.064e-06, 1.06e-06, 1.0462e-06, 1.0075e-06]
-    amplitudes = [1.0, 1.14, 1.43, 1.6]
-    widths = [2.55e-9, 7e-9, 2.1e-8, 7.1e-8]
-    centres = [1.058e-6, 1.0477e-6, 1.018e-6, 9.19e-7]
-    exponents = [4, 8, 10, 12]
-
-    # build the transmission data
-    wavelengths = zeros([130, 4, 128])
-    transmissions = zeros([130, 4, 128])
-    for i in range(4):
-        wavelengths[:, i, :] = linspace(wavelength_starts[i], wavelength_ends[i], 128)[None, :]
-        transmissions[:, i, :] = amplitudes[i] * superguass(
-            wavelengths[:, i, :], c=centres[i], w=widths[i], n=exponents[i]
-        )[None, :]
-
-    # pick a few channels which cover the full range of scattering angles
-    spatial_channels = array([0, 33, 66, 99, 129])
-    # generate testing scattering angles from a quadratric
-    coeffs = [7.85941e-07, -6.43046e-03, 2.1297]
-    full_chans = arange(0, 130)
-    scattering_angles = coeffs[2] + full_chans * coeffs[1] + full_chans ** 2 * coeffs[0]
-    return wavelengths, transmissions, scattering_angles, spatial_channels
-
-
 def test_spectrum_model():
-    wavelengths, transmissions, scattering_angles, spatial_channels = generate_testing_filters()
+    wavelengths, transmissions = build_testing_filters()
+    spatial_channels = array([0, 33, 66, 99, 129])
     n_chans = spatial_channels.size
     # specify knots settings, and also test-points inbetween the knots
     knot_range = (-3., 10.)
@@ -100,10 +69,10 @@ def test_spectrum_model():
         wavelengths=wavelengths,
         transmissions=transmissions,
         spatial_channels=spatial_channels,
-        scattering_angles=scattering_angles,
+        scattering_angles=test_channel_scattering_angles,
         ln_te_range=knot_range,
         n_temps=n_knots,
-        jit_compile=False
+        jit_compile=None
     )
 
     # generate the target values for spectral response and its gradient
@@ -111,7 +80,7 @@ def test_spectrum_model():
         wavelengths=wavelengths,
         transmissions=transmissions,
         spatial_channels=spatial_channels,
-        scattering_angles=scattering_angles,
+        scattering_angles=test_channel_scattering_angles,
         ln_te_range=test_range,
         n_temps=n_test_temps,
     )

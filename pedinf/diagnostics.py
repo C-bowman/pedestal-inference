@@ -26,6 +26,9 @@ class SpectrometerModel:
         instrument_function: InstrumentFunction,
         profile_model: ProfileModel,
     ):
+        # verify that the same number of channels is consistent
+        assert spectral_response.n_positions == instrument_function.radius.shape[0]
+
         self.response = spectral_response
         self.instfunc = instrument_function
         self.model = profile_model
