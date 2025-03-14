@@ -209,7 +209,7 @@ class SpectralResponse:
         jit_compile=False,
     ):
         self.ln_te_knots = ln_te.astype(float32)
-        self.knot_spacing = ln_te[1] - ln_te[0]
+        self.knot_spacing = self.ln_te_knots[1] - self.ln_te_knots[0]
         self.scattering_angle = scattering_angle.astype(float32)
         self.angle_grad = scattering_angle_gradient
         self.response = response
