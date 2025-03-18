@@ -2,8 +2,8 @@ from numpy import arange, zeros
 from pedinf.diagnostics import SpectrometerModel
 from pedinf.models import mtanh
 from pedinf.spectrum import SpectralResponse
-from tests.data import build_testing_filters, build_testing_instrument
-from tests.data import test_channel_scattering_angles
+from pedinf.utils import build_testing_filters, build_testing_instrument
+from pedinf.utils import test_channel_scattering_angles
 
 
 def profile_func(forward_model, test_params):

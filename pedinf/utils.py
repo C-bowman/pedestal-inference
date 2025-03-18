@@ -1,6 +1,7 @@
 from numpy import exp, linspace, zeros, tile
 from pedinf.diagnostics import InstrumentFunction
 
+
 def scattering_angle(R):
     return 2.27 - 0.65 * R
 
